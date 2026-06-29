@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: maxhub-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-maxhub}
+      POSTGRES_USER: ${POSTGRES_USER:-maxhub}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-maxhub}
+    ports:
+      - "5432:5432"
+    volumes:
+      - maxhub_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-maxhub} -d ${POSTGRES_DB:-maxhub}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  maxhub_postgres_data:

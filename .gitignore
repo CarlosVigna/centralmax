@@ -1,0 +1,10 @@
+# Configurações sensíveis
+backend/src/main/resources/application.yml
+
+# Variáveis de ambiente
+.env
+.env.local
+docker/.env
+
+# Estado local de ferramentas
+.claude/
