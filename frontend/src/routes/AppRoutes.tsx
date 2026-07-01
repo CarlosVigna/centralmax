@@ -17,6 +17,7 @@ import { CustomersPage } from '../pages/admin/CustomersPage';
 import { CustomerFormPage } from '../pages/admin/CustomerFormPage';
 import { CustomerDetailPage } from '../pages/admin/CustomerDetailPage';
 import { AgendaPage } from '../pages/admin/AgendaPage';
+import { ExpedicaoPage } from '../pages/admin/ExpedicaoPage';
 import { OrdersPage } from '../pages/admin/OrdersPage';
 import { OrderDetailPage } from '../pages/admin/OrderDetailPage';
 import { OrderFormPage } from '../pages/admin/OrderFormPage';
@@ -46,6 +47,7 @@ export function AppRoutes() {
           <Route path="clientes/:id/editar" element={<CustomerFormPage />} />
           <Route path="clientes/:id" element={<CustomerDetailPage />} />
           <Route path="agenda" element={<AgendaPage />} />
+          <Route path="expedicao" element={<ExpedicaoPage />} />
           <Route path="pedidos" element={<OrdersPage />} />
           <Route path="pedidos/novo" element={<OrderFormPage />} />
           <Route path="pedidos/:id" element={<OrderDetailPage />} />

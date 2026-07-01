@@ -56,6 +56,15 @@ public class OrderService {
         return orderMapper.toResponse(findOrThrow(id));
     }
 
+    @Transactional(readOnly = true)
+    public List<OrderResponse> getBoard() {
+        List<OrderStatus> boardStatuses = List.of(
+                OrderStatus.NOVO, OrderStatus.CONFIRMADO, OrderStatus.EM_SEPARACAO,
+                OrderStatus.SAIU_ENTREGA, OrderStatus.ENTREGUE);
+        return orderRepository.findBoardOrders(boardStatuses)
+                .stream().map(orderMapper::toResponse).toList();
+    }
+
     @Transactional
     public OrderResponse create(OrderRequest request) {
         // Resolve customer or walk-in info

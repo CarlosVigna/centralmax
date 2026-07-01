@@ -60,6 +60,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/customers", "/api/customers/**").authenticated()
                         // Pedidos — autenticado (ADMIN ou VENDEDOR)
                         .requestMatchers("/api/orders", "/api/orders/**").authenticated()
+                        // Notificações — autenticado
+                        .requestMatchers("/api/notifications/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

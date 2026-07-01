@@ -3,6 +3,7 @@ package br.com.centralmax.maxhub.order;
 import br.com.centralmax.maxhub.common.response.PageResponse;
 import br.com.centralmax.maxhub.order.dto.OrderRequest;
 import br.com.centralmax.maxhub.order.dto.OrderResponse;
+import java.util.List;
 import br.com.centralmax.maxhub.order.dto.OrderStatusUpdateRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +27,11 @@ import java.util.UUID;
 public class OrderController {
 
     private final OrderService orderService;
+
+    @GetMapping("/board")
+    public ResponseEntity<List<OrderResponse>> getBoard() {
+        return ResponseEntity.ok(orderService.getBoard());
+    }
 
     @GetMapping
     public ResponseEntity<PageResponse<OrderResponse>> list(

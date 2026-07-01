@@ -22,4 +22,9 @@ public interface OrderRepository extends JpaRepository<Order, UUID>, JpaSpecific
 
     @Query("SELECT COUNT(o) FROM Order o WHERE o.createdAt >= :start AND o.createdAt < :end AND o.active = true")
     long countCreatedBetween(@Param("start") Instant start, @Param("end") Instant end);
+
+    @Query("SELECT DISTINCT o FROM Order o LEFT JOIN FETCH o.items WHERE o.status IN :statuses AND o.active = true ORDER BY o.createdAt ASC")
+    List<Order> findBoardOrders(@Param("statuses") List<OrderStatus> statuses);
+
+    List<Order> findTop5ByStatusAndActiveOrderByCreatedAtDesc(OrderStatus status, boolean active);
 }
