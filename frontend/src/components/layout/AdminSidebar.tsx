@@ -6,6 +6,7 @@ const LINKS = [
   { to: '/admin/categorias', label: 'Categorias' },
   { to: '/admin/fornecedores', label: 'Fornecedores' },
   { to: '/admin/clientes', label: 'Clientes' },
+  { to: '/admin/agenda', label: 'Agenda' },
   { to: '/admin/pedidos', label: 'Pedidos' },
 ];
 

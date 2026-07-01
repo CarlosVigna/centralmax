@@ -1,5 +1,6 @@
 package br.com.centralmax.maxhub.dashboard;
 
+import br.com.centralmax.maxhub.customer.CustomerInteractionRepository;
 import br.com.centralmax.maxhub.customer.CustomerRepository;
 import br.com.centralmax.maxhub.order.OrderRepository;
 import br.com.centralmax.maxhub.order.OrderStatus;
@@ -12,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @Service
@@ -21,6 +23,7 @@ public class DashboardService {
     private final ProductRepository productRepository;
     private final CustomerRepository customerRepository;
     private final OrderRepository orderRepository;
+    private final CustomerInteractionRepository interactionRepository;
 
     @Transactional(readOnly = true)
     public DashboardResponse getSummary() {
@@ -35,10 +38,13 @@ public class DashboardService {
         long ordersOutForDelivery = orderRepository.countByStatusAndActive(OrderStatus.SAIU_ENTREGA);
 
         Instant todayStart = LocalDate.now(ZoneOffset.UTC).atStartOfDay(ZoneOffset.UTC).toInstant();
-        Instant todayEnd = todayStart.plus(1, java.time.temporal.ChronoUnit.DAYS);
+        Instant todayEnd = todayStart.plus(1, ChronoUnit.DAYS);
         long ordersToday = orderRepository.countCreatedBetween(todayStart, todayEnd);
 
+        long contactsToday = interactionRepository.countScheduledBetween(todayStart, todayEnd);
+        long overdueContacts = interactionRepository.countOverdue(Instant.now());
+
         return new DashboardResponse(activeProducts, totalCustomers, totalOrders,
-                pendingOrders, ordersOutForDelivery, ordersToday);
+                pendingOrders, ordersOutForDelivery, ordersToday, contactsToday, overdueContacts);
     }
 }

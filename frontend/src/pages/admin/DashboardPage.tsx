@@ -22,7 +22,7 @@ export function DashboardPage() {
             <StatCard label="Clientes cadastrados" value={data.totalCustomers} />
             <StatCard label="Pedidos registrados" value={data.totalOrders} />
           </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
             <StatCard
               label="Pedidos pendentes"
               value={data.pendingOrders}
@@ -39,6 +39,18 @@ export function DashboardPage() {
               accent="gray"
             />
           </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <StatCard
+              label="Contatos hoje"
+              value={data.contactsToday}
+              accent="green"
+            />
+            <StatCard
+              label="Contatos atrasados"
+              value={data.overdueContacts}
+              accent="red"
+            />
+          </div>
         </>
       )}
     </div>
@@ -52,14 +64,18 @@ function StatCard({
 }: {
   label: string;
   value: number;
-  accent?: 'orange' | 'blue' | 'gray';
+  accent?: 'orange' | 'blue' | 'gray' | 'green' | 'red';
 }) {
   const accentClass =
     accent === 'orange'
       ? 'text-secondary'
       : accent === 'blue'
         ? 'text-primary-light'
-        : 'text-neutral-900';
+        : accent === 'green'
+          ? 'text-green-600'
+          : accent === 'red'
+            ? 'text-danger'
+            : 'text-neutral-900';
 
   return (
     <Card>

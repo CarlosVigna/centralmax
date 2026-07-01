@@ -6,5 +6,7 @@ public record DashboardResponse(
         long totalOrders,
         long pendingOrders,
         long ordersOutForDelivery,
-        long ordersToday
+        long ordersToday,
+        long contactsToday,
+        long overdueContacts
 ) {}

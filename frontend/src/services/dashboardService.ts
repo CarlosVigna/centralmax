@@ -7,6 +7,8 @@ export interface DashboardStats {
   pendingOrders: number;
   ordersOutForDelivery: number;
   ordersToday: number;
+  contactsToday: number;
+  overdueContacts: number;
 }
 
 export async function getDashboard(): Promise<DashboardStats> {
