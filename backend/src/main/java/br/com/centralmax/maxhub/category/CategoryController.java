@@ -30,6 +30,11 @@ public class CategoryController {
         return ResponseEntity.ok(categoryService.listActive());
     }
 
+    @GetMapping("/admin")
+    public ResponseEntity<List<CategoryResponse>> listAdmin() {
+        return ResponseEntity.ok(categoryService.listAll());
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<CategoryResponse> getById(@PathVariable UUID id) {
         return ResponseEntity.ok(categoryService.getById(id));

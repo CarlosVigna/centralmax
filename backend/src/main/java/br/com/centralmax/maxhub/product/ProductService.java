@@ -40,8 +40,20 @@ public class ProductService {
     }
 
     @Transactional(readOnly = true)
+    public PageResponse<ProductAdminResponse> listAdmin(UUID categoryId, String search, ProductStatus status, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Product> result = productRepository.findAll(buildAdminSpec(categoryId, search, status), pageable);
+        return PageResponse.from(result.map(productMapper::toAdminResponse));
+    }
+
+    @Transactional(readOnly = true)
     public ProductDetailResponse getById(UUID id) {
         return productMapper.toDetail(findOrThrow(id));
+    }
+
+    @Transactional(readOnly = true)
+    public ProductAdminResponse getByIdAdmin(UUID id) {
+        return productMapper.toAdminResponse(findOrThrow(id));
     }
 
     @Transactional
@@ -114,6 +126,24 @@ public class ProductService {
 
             if (categoryId != null) {
                 predicates.add(criteriaBuilder.equal(root.get("category").get("id"), categoryId));
+            }
+            if (search != null && !search.isBlank()) {
+                predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("name")), "%" + search.toLowerCase() + "%"));
+            }
+
+            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+        };
+    }
+
+    private Specification<Product> buildAdminSpec(UUID categoryId, String search, ProductStatus status) {
+        return (root, query, criteriaBuilder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (categoryId != null) {
+                predicates.add(criteriaBuilder.equal(root.get("category").get("id"), categoryId));
+            }
+            if (status != null) {
+                predicates.add(criteriaBuilder.equal(root.get("status"), status));
             }
             if (search != null && !search.isBlank()) {
                 predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("name")), "%" + search.toLowerCase() + "%"));

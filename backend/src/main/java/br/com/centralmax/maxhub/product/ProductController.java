@@ -37,6 +37,21 @@ public class ProductController {
         return ResponseEntity.ok(productService.list(categoryId, search, page, size));
     }
 
+    @GetMapping("/admin")
+    public ResponseEntity<PageResponse<ProductAdminResponse>> listAdmin(
+            @RequestParam(required = false) UUID categoryId,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) ProductStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(productService.listAdmin(categoryId, search, status, page, size));
+    }
+
+    @GetMapping("/{id}/admin")
+    public ResponseEntity<ProductAdminResponse> getByIdAdmin(@PathVariable UUID id) {
+        return ResponseEntity.ok(productService.getByIdAdmin(id));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ProductDetailResponse> getById(@PathVariable UUID id) {
         return ResponseEntity.ok(productService.getById(id));

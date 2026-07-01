@@ -31,6 +31,12 @@ public class CategoryService {
                 .toList();
     }
 
+    public List<CategoryResponse> listAll() {
+        return categoryRepository.findAll().stream()
+                .map(categoryMapper::toResponse)
+                .toList();
+    }
+
     public CategoryResponse getById(UUID id) {
         return categoryMapper.toResponse(findOrThrow(id));
     }

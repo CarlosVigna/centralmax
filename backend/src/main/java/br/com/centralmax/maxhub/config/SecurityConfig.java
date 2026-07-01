@@ -39,8 +39,14 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
+                        // Endpoints admin (devem vir antes das regras públicas genéricas)
+                        .requestMatchers(HttpMethod.GET, "/api/categories/admin").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/products/admin").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/products/*/admin").hasRole("ADMIN")
+                        // Endpoints públicos de leitura
                         .requestMatchers(HttpMethod.GET, "/api/categories", "/api/categories/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/products", "/api/products/**").permitAll()
+                        // Escrita requer ADMIN
                         .requestMatchers(HttpMethod.POST, "/api/categories", "/api/products").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/categories/**", "/api/products/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/categories/**", "/api/products/**").hasRole("ADMIN")

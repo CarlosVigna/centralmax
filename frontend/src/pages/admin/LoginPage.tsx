@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { useAuth } from '../../hooks/useAuth';
@@ -11,10 +11,12 @@ interface LoginFormValues {
 }
 
 export function LoginPage() {
-  const { login } = useAuth();
+  const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   const { register, handleSubmit, formState } = useForm<LoginFormValues>();
+
+  if (isAuthenticated) return <Navigate to="/admin" replace />;
 
   async function onSubmit(values: LoginFormValues) {
     setError(null);

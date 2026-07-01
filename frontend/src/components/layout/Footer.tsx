@@ -1,8 +1,24 @@
+import { Link } from 'react-router-dom';
+
 export function Footer() {
   return (
-    <footer className="border-t border-neutral-300 bg-neutral-100 py-8 text-sm text-neutral-600">
+    <footer className="bg-primary py-10">
       <div className="mx-auto max-w-6xl px-4">
-        <p>Central Max Embalagens — São José do Rio Preto/SP</p>
+        <div className="flex flex-col items-center gap-3 text-center">
+          <p className="text-xl font-bold text-white">CentralMax Embalagens</p>
+          <p className="text-sm text-white/70">
+            Soluções em embalagens para o seu negócio ir mais longe
+          </p>
+          <p className="mt-4 text-xs text-white/50">
+            © 2026 CentralMax Embalagens. Todos os direitos reservados.
+          </p>
+          <Link
+            to="/admin/login"
+            className="mt-2 text-xs text-white/30 hover:text-white/60 transition-colors"
+          >
+            Área Administrativa
+          </Link>
+        </div>
       </div>
     </footer>
   );

@@ -48,7 +48,28 @@ Detalhe completo: [`../docs/03-REGRAS_DE_NEGOCIO.md`](../docs/03-REGRAS_DE_NEGOC
   - Módulo de **Categorias** completo (`/api/categories`): listagem/detalhe públicos, criação/edição/exclusão lógica restritas a `ADMIN`.
   - Módulo de **Produtos** completo (`/api/products`): listagem paginada com filtro por categoria/busca (pública, retorna `displayPrice` = Preço C), detalhe público, criação/edição/exclusão lógica restritas a `ADMIN` (com os 3 preços).
   - Frontend (React + Vite): Landing Page, página de Catálogo consumindo a API real (filtro por categoria, busca, estados de loading/vazio), Carrinho (Context + Drawer + página dedicada) com ajuste de quantidade e subtotal, geração de orçamento via WhatsApp (mensagem formatada com emoji/negrito, abrindo `api.whatsapp.com` direto — `wa.me` tem um bug de redirect que corrompe emoji), ícone de carrinho com badge no header.
-- **Em andamento:** nada no momento — Fase 1 fechada e testada de ponta a ponta (backend real + frontend real, sem mocks).
-- **Falta:** Fase 2 — Painel Administrativo (telas reais de login/dashboard/CRUD, hoje só stubs de página), módulos de Clientes, Pedidos, Fornecedores (entidades e repositórios já existem no backend, sem Controller/Service/DTO ainda — ver `decisions/001-escopo-estrutura-base-backend.md`).
+
+- **Feito — Fase 2 (Painel Admin) — parcialmente concluída:**
+  - **Login** funcional (LoginPage.tsx já conectado ao `/api/auth/login` real; AuthContext salva JWT no localStorage, PrivateRoute protege rotas).
+  - **AdminLayout** com sidebar (Dashboard, Produtos, Categorias, Fornecedores, Clientes, Pedidos) e header com nome do usuário e logout.
+  - **Dashboard** (`/admin`): cards com total de produtos ativos, clientes e pedidos — endpoint `GET /api/dashboard` (autenticado).
+  - **Categorias** (`/admin/categorias`): tabela com nome/slug/status, modal para criar e editar, botão de desativar com confirmação — endpoint `GET /api/categories/admin` (ADMIN).
+  - **Produtos** (`/admin/produtos`): tabela com nome, categoria, preço A/B/C e status, filtros de busca e status — endpoint `GET /api/products/admin` (ADMIN).
+  - **Formulário de produto** (`/admin/produtos/novo` e `/admin/produtos/:id/editar`): todos os campos (nome, descrição, categoria, fornecedor, preço A/B/C, URL da imagem) com validação React Hook Form — endpoints `GET /api/products/:id/admin`, `POST /api/products`, `PUT /api/products/:id`.
+  - **Fornecedores (listagem)**: endpoint `GET /api/suppliers` implementado no backend (autenticado) — apenas listagem, CRUD completo pendente para Fase 2.
+  - **Validação e correções (pós-Fase 2):** LoginPage redireciona automaticamente se já autenticado (evita loop); filtro por categoria adicionado ao `GET /api/products/admin` (parâmetro `categoryId`) e à tela de produtos; mensagens de erro das mutations extraem a mensagem real do backend via `axios.isAxiosError()`; query key de categorias no ProductsPage corrigida para `['admin-categories']` (evita colisão de cache com form).
+
+- **Identidade visual e Landing Page melhorada:**
+  - Cores atualizadas: `primary: #0f1f3d` (azul marinho) e `secondary: #f97316` (laranja) no `tailwind.config.ts`.
+  - Header com fundo navy e texto branco.
+  - Footer completo com logo, slogan, copyright e link discreto "Área Administrativa" → `/admin/login`.
+  - Landing Page (`/`) reestruturada com: Hero (navy), Benefícios (3 cards), Catálogo embutido (`CatalogSection`), CTA WhatsApp (navy). Botões WhatsApp usam `wa.me/5517991660410` (sem emoji no texto, então `wa.me` é seguro; apenas o orçamento usa `api.whatsapp.com` para evitar o bug de emoji).
+  - `VITE_WHATSAPP_NUMBER=5517991660410` atualizado em `.env.local`.
+  - `CatalogSection` extraído do `CatalogPage` para ser reutilizável em ambas as páginas.
+  - Migração `V3__seed_initial_products.sql` aplicada: fornecedor "Emplay Embalagens" + categoria "Sacos Plásticos" + 4 produtos PEBD com preços A/B/C.
+
+- **Em andamento:** nada no momento.
+- **Falta — restante da Fase 2:** Clientes (Service/Controller/DTO/telas), Pedidos (idem), Fornecedores (CRUD completo), reativação de produto desativado (endpoint dedicado), paginação na tela de produtos admin.
+- **Infra — JDK:** Sistema não tem JDK 21 instalado. JDK disponíveis: ms-17.0.19 e openjdk-26.0.1. JDK 26 é incompatível com Lombok (TypeTag::UNKNOWN). Solucionado alterando `java.version` para 17 no pom.xml e compilando com JDK 17 (ms-17.0.19). Maven via `~/.m2/wrapper/dists/apache-maven-3.9.15-bin/.../mvn.cmd`.
 
 Este arquivo deve ser atualizado conforme o projeto avança — é o resumo vivo do estado do MaxHub.

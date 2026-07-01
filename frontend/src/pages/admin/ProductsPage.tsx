@@ -1,8 +1,191 @@
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Table } from '../../components/ui/Table';
+import { Button } from '../../components/ui/Button';
+import { Badge } from '../../components/ui/Badge';
+import { Modal } from '../../components/ui/Modal';
+import { Input } from '../../components/ui/Input';
+import { listAdminProducts, deleteProduct } from '../../services/productService';
+import { listAllCategories } from '../../services/categoryService';
+import { formatCurrency } from '../../utils/formatCurrency';
+import type { ProductAdmin } from '../../types/product';
+
 export function ProductsPage() {
+  const queryClient = useQueryClient();
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'ATIVO' | 'INATIVO' | ''>('');
+  const [categoryId, setCategoryId] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState<ProductAdmin | null>(null);
+
+  const { data: categories = [] } = useQuery({
+    queryKey: ['admin-categories'],
+    queryFn: listAllCategories,
+    staleTime: 1000 * 60 * 10,
+  });
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['admin-products', { search, status: statusFilter || undefined, categoryId: categoryId || undefined }],
+    queryFn: () =>
+      listAdminProducts({
+        search: search || undefined,
+        status: statusFilter || undefined,
+        categoryId: categoryId || undefined,
+      }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteProduct(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      setConfirmDelete(null);
+    },
+  });
+
+  const products = data?.content ?? [];
+
+  const columns = [
+    {
+      header: 'Nome',
+      render: (row: ProductAdmin) => (
+        <span className="font-medium text-neutral-900">{row.name}</span>
+      ),
+    },
+    {
+      header: 'Categoria',
+      render: (row: ProductAdmin) => (
+        <span className="text-neutral-700">{row.categoryName}</span>
+      ),
+    },
+    {
+      header: 'Preço A',
+      render: (row: ProductAdmin) => (
+        <span className="text-neutral-700">{formatCurrency(row.priceA)}</span>
+      ),
+    },
+    {
+      header: 'Preço B',
+      render: (row: ProductAdmin) => (
+        <span className="text-neutral-700">{formatCurrency(row.priceB)}</span>
+      ),
+    },
+    {
+      header: 'Preço C',
+      render: (row: ProductAdmin) => (
+        <span className="text-neutral-700">{formatCurrency(row.priceC)}</span>
+      ),
+    },
+    {
+      header: 'Status',
+      render: (row: ProductAdmin) =>
+        row.status === 'ATIVO' ? (
+          <Badge variant="success">Ativo</Badge>
+        ) : (
+          <Badge variant="neutral">Inativo</Badge>
+        ),
+    },
+    {
+      header: 'Ações',
+      render: (row: ProductAdmin) => (
+        <div className="flex gap-2">
+          <Link to={`/admin/produtos/${row.id}/editar`}>
+            <Button size="sm" variant="outline">
+              Editar
+            </Button>
+          </Link>
+          {row.status === 'ATIVO' && (
+            <Button size="sm" variant="danger" onClick={() => setConfirmDelete(row)}>
+              Desativar
+            </Button>
+          )}
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div>
-      <h1 className="text-2xl font-bold text-neutral-900">Produtos</h1>
-      <p className="mt-2 text-sm text-neutral-600">Em construção — gestão de produtos chega na Fase 2.</p>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-neutral-900">Produtos</h1>
+        <Link to="/admin/produtos/novo">
+          <Button>Novo produto</Button>
+        </Link>
+      </div>
+
+      {/* Filtros */}
+      <div className="mb-4 flex flex-wrap gap-3">
+        <Input
+          placeholder="Buscar por nome..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="max-w-xs"
+        />
+        <select
+          value={categoryId}
+          onChange={(e) => setCategoryId(e.target.value)}
+          className="rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-light"
+        >
+          <option value="">Todas as categorias</option>
+          {categories.map((c) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value as 'ATIVO' | 'INATIVO' | '')}
+          className="rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-light"
+        >
+          <option value="">Todos os status</option>
+          <option value="ATIVO">Ativos</option>
+          <option value="INATIVO">Inativos</option>
+        </select>
+      </div>
+
+      {isLoading ? (
+        <p className="text-sm text-neutral-600">Carregando...</p>
+      ) : (
+        <>
+          <div className="overflow-hidden rounded-lg border border-neutral-300 bg-white">
+            <Table
+              columns={columns}
+              data={products}
+              emptyMessage="Nenhum produto encontrado."
+            />
+          </div>
+          {data && data.totalPages > 1 && (
+            <p className="mt-3 text-xs text-neutral-600">
+              {data.totalElements} produto(s) no total
+            </p>
+          )}
+        </>
+      )}
+
+      {/* Modal de confirmação de desativação */}
+      <Modal
+        open={Boolean(confirmDelete)}
+        onClose={() => setConfirmDelete(null)}
+        title="Desativar produto"
+      >
+        <p className="mb-4 text-sm text-neutral-700">
+          Deseja desativar o produto <strong>{confirmDelete?.name}</strong>? Ele não aparecerá mais no catálogo público.
+        </p>
+        {deleteMutation.isError && (
+          <p className="mb-4 text-sm text-danger">Erro ao desativar. Tente novamente.</p>
+        )}
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={() => setConfirmDelete(null)}>
+            Cancelar
+          </Button>
+          <Button
+            variant="danger"
+            disabled={deleteMutation.isPending}
+            onClick={() => confirmDelete && deleteMutation.mutate(confirmDelete.id)}
+          >
+            Desativar
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }

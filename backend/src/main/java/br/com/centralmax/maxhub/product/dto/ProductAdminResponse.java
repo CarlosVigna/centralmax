@@ -10,6 +10,7 @@ public record ProductAdminResponse(
         String name,
         String description,
         UUID categoryId,
+        String categoryName,
         UUID supplierId,
         BigDecimal priceA,
         BigDecimal priceB,
