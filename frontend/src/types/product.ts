@@ -34,6 +34,7 @@ export interface ProductSummary {
 export interface ProductDetail extends ProductSummary {
   status: 'ATIVO' | 'INATIVO';
   photos: ProductPhoto[];
+  variations: ProductVariation[];
 }
 
 export interface ProductAdmin {

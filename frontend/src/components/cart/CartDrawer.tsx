@@ -30,7 +30,7 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
           {items.length === 0 ? (
             <EmptyCart onContinue={onClose} />
           ) : (
-            items.map((item) => <CartItem key={item.productId} item={item} />)
+            items.map((item) => <CartItem key={item.cartItemId} item={item} />)
           )}
         </div>
 

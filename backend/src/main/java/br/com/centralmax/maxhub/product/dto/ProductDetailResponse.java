@@ -2,6 +2,7 @@ package br.com.centralmax.maxhub.product.dto;
 
 import br.com.centralmax.maxhub.product.ProductStatus;
 import br.com.centralmax.maxhub.product.photo.dto.ProductPhotoResponse;
+import br.com.centralmax.maxhub.product.variation.dto.ProductVariationResponse;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -16,5 +17,6 @@ public record ProductDetailResponse(
         String mainImageUrl,
         BigDecimal displayPrice,
         ProductStatus status,
-        List<ProductPhotoResponse> photos
+        List<ProductPhotoResponse> photos,
+        List<ProductVariationResponse> variations
 ) {}

@@ -1,33 +1,60 @@
 import type { ProductSummary } from '../../types/product';
-import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { formatCurrency } from '../../utils/formatCurrency';
-import { useCart } from '../../hooks/useCart';
 
 interface ProductCardProps {
   product: ProductSummary;
+  onCardClick?: (id: string) => void;
+  onAddClick?: (product: ProductSummary) => void;
+  /** legacy toast callback after direct add */
   onAdd?: (product: ProductSummary) => void;
 }
 
-export function ProductCard({ product, onAdd }: ProductCardProps) {
-  const { addItem } = useCart();
-
-  function handleAdd() {
-    addItem({ productId: product.id, name: product.name, unitPrice: product.displayPrice });
-    onAdd?.(product);
+export function ProductCard({ product, onCardClick, onAddClick, onAdd }: ProductCardProps) {
+  function handleCardClick() {
+    onCardClick?.(product.id);
   }
 
+  function handleAddClick(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (onAddClick) {
+      onAddClick(product);
+    } else {
+      // Fallback: no modal support, fire legacy callback
+      onAdd?.(product);
+    }
+  }
+
+  const imageUrl = product.mainImageUrl;
+
   return (
-    <Card variant="interactive" className="flex flex-col gap-2">
-      {product.mainImageUrl ? (
-        <img src={product.mainImageUrl} alt={product.name} className="h-40 w-full rounded-md object-cover" />
-      ) : (
-        <div className="flex h-40 w-full items-center justify-center rounded-md bg-neutral-100 text-xs text-neutral-600">
-          Sem imagem
-        </div>
-      )}
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={handleCardClick}
+      onKeyDown={(e) => e.key === 'Enter' && handleCardClick()}
+      className="group flex flex-col gap-2 rounded-lg border border-neutral-300 bg-white p-4 shadow-sm
+        cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-lg outline-none
+        focus-visible:ring-2 focus-visible:ring-secondary"
+    >
+      {/* Photo with zoom on hover */}
+      <div className="overflow-hidden rounded-md">
+        {imageUrl ? (
+          <img
+            src={imageUrl}
+            alt={product.name}
+            className="h-40 w-full object-cover transition-transform duration-300 group-hover:scale-[1.08]"
+          />
+        ) : (
+          <div className="flex h-40 w-full items-center justify-center rounded-md bg-neutral-100 text-2xl text-neutral-400">
+            📦
+          </div>
+        )}
+      </div>
+
       <span className="text-xs text-neutral-600">{product.categoryName}</span>
-      <h3 className="text-base font-medium text-neutral-900">{product.name}</h3>
+      <h3 className="text-base font-medium text-neutral-900 leading-tight">{product.name}</h3>
+
       {product.description && (
         <p
           className="text-sm text-neutral-600"
@@ -41,10 +68,12 @@ export function ProductCard({ product, onAdd }: ProductCardProps) {
           {product.description}
         </p>
       )}
-      <span className="text-lg font-bold text-primary">{formatCurrency(product.displayPrice)}</span>
-      <Button size="sm" onClick={handleAdd}>
+
+      <span className="text-lg font-bold text-secondary">{formatCurrency(product.displayPrice)}</span>
+
+      <Button size="sm" onClick={handleAddClick} className="mt-auto">
         Adicionar ao carrinho
       </Button>
-    </Card>
+    </div>
   );
 }

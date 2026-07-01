@@ -20,6 +20,7 @@ public interface ProductMapper {
     @Mapping(target = "categoryName", source = "category.name")
     @Mapping(target = "displayPrice", source = "priceC")
     @Mapping(target = "photos", source = "photos")
+    @Mapping(target = "variations", source = "variations")
     ProductDetailResponse toDetail(Product product);
 
     @Mapping(target = "categoryId", source = "category.id")

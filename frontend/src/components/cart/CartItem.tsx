@@ -13,17 +13,22 @@ export function CartItem({ item }: CartItemProps) {
 
   function decrease() {
     if (item.quantity <= 1) return;
-    updateQuantity(item.productId, item.quantity - 1);
+    updateQuantity(item.cartItemId, item.quantity - 1);
   }
 
   function increase() {
-    updateQuantity(item.productId, item.quantity + 1);
+    updateQuantity(item.cartItemId, item.quantity + 1);
   }
 
   return (
     <div className="flex items-center justify-between gap-3 border-b border-neutral-300 py-3">
       <div className="flex-1">
         <p className="text-sm font-medium text-neutral-900">{item.name}</p>
+        {item.selectedVariation && (
+          <p className="text-xs text-secondary font-medium">
+            {item.selectedVariation.name}: {item.selectedVariation.value}
+          </p>
+        )}
         <p className="text-xs text-neutral-600">{formatCurrency(item.unitPrice)} / unidade</p>
         <p className="text-sm font-semibold text-primary">{formatCurrency(subtotal)}</p>
       </div>
@@ -38,7 +43,7 @@ export function CartItem({ item }: CartItemProps) {
         </Button>
       </div>
 
-      <Button variant="ghost" size="sm" onClick={() => removeItem(item.productId)}>
+      <Button variant="ghost" size="sm" onClick={() => removeItem(item.cartItemId)}>
         Remover
       </Button>
     </div>

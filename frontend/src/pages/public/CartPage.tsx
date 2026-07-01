@@ -15,7 +15,7 @@ export function CartPage() {
       ) : (
         <>
           {items.map((item) => (
-            <CartItem key={item.productId} item={item} />
+            <CartItem key={item.cartItemId} item={item} />
           ))}
           <div className="mt-4">
             <CartSummary />
