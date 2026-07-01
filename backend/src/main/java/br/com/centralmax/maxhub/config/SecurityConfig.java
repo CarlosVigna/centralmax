@@ -46,12 +46,20 @@ public class SecurityConfig {
                         // Endpoints públicos de leitura
                         .requestMatchers(HttpMethod.GET, "/api/categories", "/api/categories/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/products", "/api/products/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
                         // Escrita requer ADMIN
                         .requestMatchers(HttpMethod.POST, "/api/categories", "/api/products").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/categories/**", "/api/products/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/categories/**", "/api/products/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/products/*/photos").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/products/*/duplicate").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/products/*/photos/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/products/*/variations").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/products/*/variations/**").hasRole("ADMIN")
                         // Clientes — autenticado (ADMIN ou VENDEDOR)
                         .requestMatchers("/api/customers", "/api/customers/**").authenticated()
+                        // Pedidos — autenticado (ADMIN ou VENDEDOR)
+                        .requestMatchers("/api/orders", "/api/orders/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

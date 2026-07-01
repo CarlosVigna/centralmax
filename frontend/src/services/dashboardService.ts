@@ -4,6 +4,9 @@ export interface DashboardStats {
   activeProducts: number;
   totalCustomers: number;
   totalOrders: number;
+  pendingOrders: number;
+  ordersOutForDelivery: number;
+  ordersToday: number;
 }
 
 export async function getDashboard(): Promise<DashboardStats> {

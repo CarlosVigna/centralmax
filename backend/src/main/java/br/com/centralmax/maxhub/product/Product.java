@@ -1,6 +1,8 @@
 package br.com.centralmax.maxhub.product;
 
 import br.com.centralmax.maxhub.category.Category;
+import br.com.centralmax.maxhub.product.photo.ProductPhoto;
+import br.com.centralmax.maxhub.product.variation.ProductVariation;
 import br.com.centralmax.maxhub.supplier.Supplier;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -12,9 +14,12 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.SQLRestriction;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -23,6 +28,8 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -67,6 +74,17 @@ public class Product {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private ProductStatus status;
+
+    @OneToMany(mappedBy = "product", fetch = FetchType.LAZY)
+    @OrderBy("displayOrder ASC")
+    @Builder.Default
+    private List<ProductPhoto> photos = new ArrayList<>();
+
+    @OneToMany(mappedBy = "product", fetch = FetchType.LAZY)
+    @OrderBy("createdAt ASC")
+    @SQLRestriction("active = true")
+    @Builder.Default
+    private List<ProductVariation> variations = new ArrayList<>();
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

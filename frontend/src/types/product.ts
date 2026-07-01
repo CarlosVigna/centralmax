@@ -8,6 +8,19 @@ export interface CategoryFull extends Category {
   active: boolean;
 }
 
+export interface ProductPhoto {
+  id: string;
+  url: string;
+  isPrimary: boolean;
+  order: number;
+}
+
+export interface ProductVariation {
+  id: string;
+  name: string;
+  value: string;
+}
+
 export interface ProductSummary {
   id: string;
   name: string;
@@ -20,6 +33,7 @@ export interface ProductSummary {
 
 export interface ProductDetail extends ProductSummary {
   status: 'ATIVO' | 'INATIVO';
+  photos: ProductPhoto[];
 }
 
 export interface ProductAdmin {
@@ -34,6 +48,8 @@ export interface ProductAdmin {
   priceC: number;
   mainImageUrl: string | null;
   status: 'ATIVO' | 'INATIVO';
+  photos: ProductPhoto[];
+  variations: ProductVariation[];
 }
 
 export interface ProductRequest {

@@ -3,6 +3,8 @@ package br.com.centralmax.maxhub.dashboard;
 public record DashboardResponse(
         long activeProducts,
         long totalCustomers,
-        long totalOrders
-) {
-}
+        long totalOrders,
+        long pendingOrders,
+        long ordersOutForDelivery,
+        long ordersToday
+) {}

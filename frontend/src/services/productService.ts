@@ -57,3 +57,13 @@ export async function updateProduct(id: string, request: ProductRequest): Promis
 export async function deleteProduct(id: string): Promise<void> {
   await api.delete(`/products/${id}`);
 }
+
+export async function duplicateProduct(
+  id: string,
+  copyPhotos: boolean,
+): Promise<ProductAdmin> {
+  const { data } = await api.post<ProductAdmin>(
+    `/products/${id}/duplicate?copyPhotos=${copyPhotos}`,
+  );
+  return data;
+}

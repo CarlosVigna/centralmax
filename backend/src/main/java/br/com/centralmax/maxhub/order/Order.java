@@ -1,7 +1,6 @@
 package br.com.centralmax.maxhub.order;
 
 import br.com.centralmax.maxhub.customer.Customer;
-import br.com.centralmax.maxhub.customer.CustomerOrigin;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -43,23 +42,31 @@ public class Order {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "customer_id", nullable = false)
+    @Column(name = "order_number", unique = true, length = 20)
+    private String orderNumber;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id")
     private Customer customer;
+
+    @Column(name = "customer_name", length = 160)
+    private String customerName;
+
+    @Column(name = "customer_phone", length = 20)
+    private String customerPhone;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private OrderStatus status;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private CustomerOrigin origin;
-
-    @Column(nullable = false, precision = 12, scale = 2)
-    private BigDecimal total;
-
     @Column(columnDefinition = "TEXT")
     private String notes;
+
+    @Column(name = "total_amount", nullable = false, precision = 12, scale = 2)
+    private BigDecimal totalAmount;
+
+    @Column(nullable = false)
+    private boolean active;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("createdAt ASC")
@@ -77,6 +84,9 @@ public class Order {
         Instant now = Instant.now();
         createdAt = now;
         updatedAt = now;
+        if (status == null) status = OrderStatus.NOVO;
+        active = true;
+        if (totalAmount == null) totalAmount = BigDecimal.ZERO;
     }
 
     @PreUpdate

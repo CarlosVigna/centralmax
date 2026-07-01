@@ -1,22 +1,25 @@
+import axios from 'axios';
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Table } from '../../components/ui/Table';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
-import { listAdminProducts, deleteProduct } from '../../services/productService';
+import { listAdminProducts, deleteProduct, duplicateProduct } from '../../services/productService';
 import { listAllCategories } from '../../services/categoryService';
 import { formatCurrency } from '../../utils/formatCurrency';
 import type { ProductAdmin } from '../../types/product';
 
 export function ProductsPage() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ATIVO' | 'INATIVO' | ''>('');
   const [categoryId, setCategoryId] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<ProductAdmin | null>(null);
+  const [confirmDuplicate, setConfirmDuplicate] = useState<ProductAdmin | null>(null);
 
   const { data: categories = [] } = useQuery({
     queryKey: ['admin-categories'],
@@ -40,6 +43,16 @@ export function ProductsPage() {
       queryClient.invalidateQueries({ queryKey: ['admin-products'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
       setConfirmDelete(null);
+    },
+  });
+
+  const duplicateMutation = useMutation({
+    mutationFn: ({ id, copyPhotos }: { id: string; copyPhotos: boolean }) =>
+      duplicateProduct(id, copyPhotos),
+    onSuccess: (created) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+      setConfirmDuplicate(null);
+      navigate(`/admin/produtos/${created.id}/editar`);
     },
   });
 
@@ -77,6 +90,12 @@ export function ProductsPage() {
       ),
     },
     {
+      header: 'Fotos',
+      render: (row: ProductAdmin) => (
+        <span className="text-neutral-600">{row.photos?.length ?? 0}</span>
+      ),
+    },
+    {
       header: 'Status',
       render: (row: ProductAdmin) =>
         row.status === 'ATIVO' ? (
@@ -88,12 +107,20 @@ export function ProductsPage() {
     {
       header: 'Ações',
       render: (row: ProductAdmin) => (
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-1.5">
           <Link to={`/admin/produtos/${row.id}/editar`}>
             <Button size="sm" variant="outline">
               Editar
             </Button>
           </Link>
+          <Button
+            size="sm"
+            variant="ghost"
+            title="Duplicar produto"
+            onClick={() => setConfirmDuplicate(row)}
+          >
+            Copiar
+          </Button>
           {row.status === 'ATIVO' && (
             <Button size="sm" variant="danger" onClick={() => setConfirmDelete(row)}>
               Desativar
@@ -161,7 +188,7 @@ export function ProductsPage() {
         </>
       )}
 
-      {/* Modal de confirmação de desativação */}
+      {/* Modal: desativar */}
       <Modal
         open={Boolean(confirmDelete)}
         onClose={() => setConfirmDelete(null)}
@@ -171,7 +198,11 @@ export function ProductsPage() {
           Deseja desativar o produto <strong>{confirmDelete?.name}</strong>? Ele não aparecerá mais no catálogo público.
         </p>
         {deleteMutation.isError && (
-          <p className="mb-4 text-sm text-danger">Erro ao desativar. Tente novamente.</p>
+          <p className="mb-4 text-sm text-danger">
+            {axios.isAxiosError(deleteMutation.error)
+              ? (deleteMutation.error.response?.data?.message ?? 'Erro ao desativar.')
+              : 'Erro ao desativar.'}
+          </p>
         )}
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => setConfirmDelete(null)}>
@@ -183,6 +214,52 @@ export function ProductsPage() {
             onClick={() => confirmDelete && deleteMutation.mutate(confirmDelete.id)}
           >
             Desativar
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Modal: duplicar */}
+      <Modal
+        open={Boolean(confirmDuplicate)}
+        onClose={() => setConfirmDuplicate(null)}
+        title="Duplicar produto"
+      >
+        <p className="mb-5 text-sm text-neutral-700">
+          Deseja duplicar <strong>{confirmDuplicate?.name}</strong>?
+          O produto será criado como <em>inativo</em> com o nome "Cópia de ...".
+          <br />
+          <br />
+          Deseja copiar as fotos também?
+        </p>
+        {duplicateMutation.isError && (
+          <p className="mb-4 text-sm text-danger">
+            {axios.isAxiosError(duplicateMutation.error)
+              ? (duplicateMutation.error.response?.data?.message ?? 'Erro ao duplicar.')
+              : 'Erro ao duplicar.'}
+          </p>
+        )}
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button variant="outline" onClick={() => setConfirmDuplicate(null)}>
+            Cancelar
+          </Button>
+          <Button
+            variant="outline"
+            disabled={duplicateMutation.isPending}
+            onClick={() =>
+              confirmDuplicate &&
+              duplicateMutation.mutate({ id: confirmDuplicate.id, copyPhotos: false })
+            }
+          >
+            Não, só o produto
+          </Button>
+          <Button
+            disabled={duplicateMutation.isPending}
+            onClick={() =>
+              confirmDuplicate &&
+              duplicateMutation.mutate({ id: confirmDuplicate.id, copyPhotos: true })
+            }
+          >
+            Sim, copiar fotos
           </Button>
         </div>
       </Modal>

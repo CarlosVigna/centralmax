@@ -1,8 +1,252 @@
+import axios from 'axios';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Table } from '../../components/ui/Table';
+import { Button } from '../../components/ui/Button';
+import { Badge } from '../../components/ui/Badge';
+import { Modal } from '../../components/ui/Modal';
+import { Input } from '../../components/ui/Input';
+import {
+  deleteOrder,
+  listOrders,
+  updateOrderStatus,
+} from '../../services/orderService';
+import {
+  nextStatus,
+  STATUS_BADGE_VARIANT,
+  STATUS_LABELS,
+} from '../../types/order';
+import type { OrderResponse, OrderStatus } from '../../types/order';
+
+const TAB_FILTERS: { label: string; value: OrderStatus | '' }[] = [
+  { label: 'Todos', value: '' },
+  { label: 'Novos', value: 'NOVO' },
+  { label: 'Confirmados', value: 'CONFIRMADO' },
+  { label: 'Em Separação', value: 'EM_SEPARACAO' },
+  { label: 'Saíram p/ Entrega', value: 'SAIU_ENTREGA' },
+  { label: 'Entregues', value: 'ENTREGUE' },
+  { label: 'Concluídos', value: 'CONCLUIDO' },
+  { label: 'Cancelados', value: 'CANCELADO' },
+];
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString('pt-BR');
+}
+
+function formatCurrency(value: number) {
+  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
 export function OrdersPage() {
+  const queryClient = useQueryClient();
+  const [search, setSearch] = useState('');
+  const [activeTab, setActiveTab] = useState<OrderStatus | ''>('');
+  const [confirmCancel, setConfirmCancel] = useState<OrderResponse | null>(null);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['orders', { status: activeTab || undefined, search: search || undefined }],
+    queryFn: () =>
+      listOrders({
+        status: activeTab || undefined,
+        search: search || undefined,
+        size: 50,
+      }),
+  });
+
+  const advanceMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: OrderStatus }) =>
+      updateOrderStatus(id, status),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['orders'] }),
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: (id: string) => updateOrderStatus(id, 'CANCELADO'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      setConfirmCancel(null);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteOrder(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['orders'] }),
+  });
+
+  const orders = data?.content ?? [];
+
+  const columns = [
+    {
+      header: 'Nº Pedido',
+      render: (row: OrderResponse) => (
+        <Link
+          to={`/admin/pedidos/${row.id}`}
+          className="font-mono text-sm font-semibold text-primary hover:underline"
+        >
+          {row.orderNumber}
+        </Link>
+      ),
+    },
+    {
+      header: 'Cliente',
+      render: (row: OrderResponse) => (
+        <span className="text-neutral-900">{row.customerDisplayName}</span>
+      ),
+    },
+    {
+      header: 'Status',
+      render: (row: OrderResponse) => (
+        <Badge variant={STATUS_BADGE_VARIANT[row.status]}>{row.statusLabel}</Badge>
+      ),
+    },
+    {
+      header: 'Total',
+      render: (row: OrderResponse) => (
+        <span className="font-medium text-neutral-900">
+          {formatCurrency(row.totalAmount)}
+        </span>
+      ),
+    },
+    {
+      header: 'Data',
+      render: (row: OrderResponse) => (
+        <span className="text-neutral-600">{formatDate(row.createdAt)}</span>
+      ),
+    },
+    {
+      header: 'Ações',
+      render: (row: OrderResponse) => {
+        const next = nextStatus(row.status);
+        const canCancel =
+          row.status !== 'CONCLUIDO' && row.status !== 'CANCELADO';
+        const canDelete =
+          row.status === 'NOVO' || row.status === 'CANCELADO';
+        return (
+          <div className="flex flex-wrap gap-1.5">
+            <Link to={`/admin/pedidos/${row.id}`}>
+              <Button size="sm" variant="ghost">Ver</Button>
+            </Link>
+            {next && (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={advanceMutation.isPending}
+                onClick={() => advanceMutation.mutate({ id: row.id, status: next })}
+              >
+                {STATUS_LABELS[next]}
+              </Button>
+            )}
+            {canCancel && (
+              <Button
+                size="sm"
+                variant="danger"
+                onClick={() => setConfirmCancel(row)}
+              >
+                Cancelar
+              </Button>
+            )}
+            {canDelete && (
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={deleteMutation.isPending}
+                onClick={() => deleteMutation.mutate(row.id)}
+              >
+                Excluir
+              </Button>
+            )}
+          </div>
+        );
+      },
+    },
+  ];
+
   return (
     <div>
-      <h1 className="text-2xl font-bold text-neutral-900">Pedidos</h1>
-      <p className="mt-2 text-sm text-neutral-600">Em construção — gestão de pedidos chega na Fase 2.</p>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-neutral-900">Pedidos</h1>
+        <Link to="/admin/pedidos/novo">
+          <Button>Novo pedido</Button>
+        </Link>
+      </div>
+
+      {/* Tabs de status */}
+      <div className="mb-4 flex flex-wrap gap-1 border-b border-neutral-200 pb-2">
+        {TAB_FILTERS.map((tab) => (
+          <button
+            key={tab.value}
+            onClick={() => setActiveTab(tab.value)}
+            className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
+              activeTab === tab.value
+                ? 'bg-primary text-white'
+                : 'text-neutral-600 hover:bg-neutral-100'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Busca */}
+      <div className="mb-4">
+        <Input
+          placeholder="Buscar por nº pedido ou nome do cliente..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="max-w-sm"
+        />
+      </div>
+
+      {isLoading ? (
+        <p className="text-sm text-neutral-600">Carregando...</p>
+      ) : (
+        <>
+          <div className="overflow-hidden rounded-lg border border-neutral-300 bg-white">
+            <Table
+              columns={columns}
+              data={orders}
+              emptyMessage="Nenhum pedido encontrado."
+            />
+          </div>
+          {data && data.totalElements > 0 && (
+            <p className="mt-3 text-xs text-neutral-600">
+              {data.totalElements} pedido(s) no total
+            </p>
+          )}
+        </>
+      )}
+
+      {/* Modal cancelar */}
+      <Modal
+        open={Boolean(confirmCancel)}
+        onClose={() => setConfirmCancel(null)}
+        title="Cancelar pedido"
+      >
+        <p className="mb-4 text-sm text-neutral-700">
+          Deseja cancelar o pedido{' '}
+          <strong>{confirmCancel?.orderNumber}</strong> de{' '}
+          <strong>{confirmCancel?.customerDisplayName}</strong>?
+        </p>
+        {cancelMutation.isError && (
+          <p className="mb-4 text-sm text-danger">
+            {axios.isAxiosError(cancelMutation.error)
+              ? (cancelMutation.error.response?.data?.message ?? 'Erro ao cancelar.')
+              : 'Erro ao cancelar.'}
+          </p>
+        )}
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={() => setConfirmCancel(null)}>
+            Voltar
+          </Button>
+          <Button
+            variant="danger"
+            disabled={cancelMutation.isPending}
+            onClick={() => confirmCancel && cancelMutation.mutate(confirmCancel.id)}
+          >
+            Cancelar pedido
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }

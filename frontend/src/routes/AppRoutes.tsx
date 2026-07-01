@@ -18,6 +18,7 @@ import { CustomerFormPage } from '../pages/admin/CustomerFormPage';
 import { CustomerDetailPage } from '../pages/admin/CustomerDetailPage';
 import { OrdersPage } from '../pages/admin/OrdersPage';
 import { OrderDetailPage } from '../pages/admin/OrderDetailPage';
+import { OrderFormPage } from '../pages/admin/OrderFormPage';
 
 export function AppRoutes() {
   return (
@@ -44,6 +45,7 @@ export function AppRoutes() {
           <Route path="clientes/:id/editar" element={<CustomerFormPage />} />
           <Route path="clientes/:id" element={<CustomerDetailPage />} />
           <Route path="pedidos" element={<OrdersPage />} />
+          <Route path="pedidos/novo" element={<OrderFormPage />} />
           <Route path="pedidos/:id" element={<OrderDetailPage />} />
         </Route>
       </Route>

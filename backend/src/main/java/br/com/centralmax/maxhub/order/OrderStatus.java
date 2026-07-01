@@ -1,9 +1,11 @@
 package br.com.centralmax.maxhub.order;
 
 public enum OrderStatus {
-    ORCAMENTO,
+    NOVO,
     CONFIRMADO,
-    EM_PREPARACAO,
+    EM_SEPARACAO,
+    SAIU_ENTREGA,
+    ENTREGUE,
     CONCLUIDO,
     CANCELADO
 }

@@ -42,11 +42,17 @@ public class OrderItem {
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
+    @Column(name = "product_name", length = 160)
+    private String productName;
+
     @Column(nullable = false)
     private Integer quantity;
 
     @Column(name = "unit_price", nullable = false, precision = 12, scale = 2)
     private BigDecimal unitPrice;
+
+    @Column(precision = 12, scale = 2)
+    private BigDecimal subtotal;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

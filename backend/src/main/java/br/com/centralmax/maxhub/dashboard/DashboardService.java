@@ -2,11 +2,17 @@ package br.com.centralmax.maxhub.dashboard;
 
 import br.com.centralmax.maxhub.customer.CustomerRepository;
 import br.com.centralmax.maxhub.order.OrderRepository;
+import br.com.centralmax.maxhub.order.OrderStatus;
 import br.com.centralmax.maxhub.product.ProductRepository;
 import br.com.centralmax.maxhub.product.ProductStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -23,6 +29,16 @@ public class DashboardService {
         );
         long totalCustomers = customerRepository.count();
         long totalOrders = orderRepository.count();
-        return new DashboardResponse(activeProducts, totalCustomers, totalOrders);
+
+        long pendingOrders = orderRepository.countByStatusInAndActive(
+                List.of(OrderStatus.NOVO, OrderStatus.CONFIRMADO, OrderStatus.EM_SEPARACAO));
+        long ordersOutForDelivery = orderRepository.countByStatusAndActive(OrderStatus.SAIU_ENTREGA);
+
+        Instant todayStart = LocalDate.now(ZoneOffset.UTC).atStartOfDay(ZoneOffset.UTC).toInstant();
+        Instant todayEnd = todayStart.plus(1, java.time.temporal.ChronoUnit.DAYS);
+        long ordersToday = orderRepository.countCreatedBetween(todayStart, todayEnd);
+
+        return new DashboardResponse(activeProducts, totalCustomers, totalOrders,
+                pendingOrders, ordersOutForDelivery, ordersToday);
     }
 }

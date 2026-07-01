@@ -8,10 +8,17 @@ import br.com.centralmax.maxhub.product.dto.ProductAdminResponse;
 import br.com.centralmax.maxhub.product.dto.ProductDetailResponse;
 import br.com.centralmax.maxhub.product.dto.ProductRequest;
 import br.com.centralmax.maxhub.product.dto.ProductSummaryResponse;
+import br.com.centralmax.maxhub.product.photo.ProductPhoto;
+import br.com.centralmax.maxhub.product.photo.ProductPhotoRepository;
+import br.com.centralmax.maxhub.product.variation.ProductVariation;
+import br.com.centralmax.maxhub.product.variation.ProductVariationRepository;
 import br.com.centralmax.maxhub.supplier.Supplier;
 import br.com.centralmax.maxhub.supplier.SupplierRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -19,6 +26,11 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -30,7 +42,18 @@ public class ProductService {
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
     private final SupplierRepository supplierRepository;
+    private final ProductPhotoRepository photoRepository;
+    private final ProductVariationRepository variationRepository;
     private final ProductMapper productMapper;
+
+    @PersistenceContext
+    private EntityManager entityManager;
+
+    @Value("${app.upload.dir}")
+    private String uploadDir;
+
+    @Value("${app.upload.base-url}")
+    private String baseUrl;
 
     @Transactional(readOnly = true)
     public PageResponse<ProductSummaryResponse> list(UUID categoryId, String search, int page, int size) {
@@ -101,6 +124,94 @@ public class ProductService {
         productRepository.save(product);
     }
 
+    @Transactional
+    public ProductAdminResponse duplicate(UUID id, boolean copyPhotos) {
+        Product original = findOrThrow(id);
+
+        Product copy = Product.builder()
+                .name("Cópia de " + original.getName())
+                .description(original.getDescription())
+                .category(original.getCategory())
+                .supplier(original.getSupplier())
+                .priceA(original.getPriceA())
+                .priceB(original.getPriceB())
+                .priceC(original.getPriceC())
+                .mainImageUrl(original.getMainImageUrl())
+                .status(ProductStatus.INATIVO)
+                .build();
+
+        copy = productRepository.save(copy);
+
+        if (copyPhotos) {
+            copyPhotos(original, copy);
+        }
+
+        // Copy active variations
+        List<ProductVariation> sourceVariations =
+                variationRepository.findByProductIdAndActiveTrueOrderByCreatedAtAsc(original.getId());
+
+        final Product savedCopy = copy;
+        List<ProductVariation> copiedVariations = sourceVariations.stream()
+                .map(v -> ProductVariation.builder()
+                        .product(savedCopy)
+                        .name(v.getName())
+                        .value(v.getValue())
+                        .build())
+                .toList();
+
+        variationRepository.saveAll(copiedVariations);
+
+        // Flush to DB and evict from L1 cache so the re-fetch includes the new variations
+        entityManager.flush();
+        entityManager.refresh(copy);
+
+        return productMapper.toAdminResponse(copy);
+    }
+
+    private void copyPhotos(Product original, Product copy) {
+        List<ProductPhoto> sourcePhotos =
+                photoRepository.findByProductIdOrderByDisplayOrderAsc(original.getId());
+
+        Path base = Paths.get(uploadDir).toAbsolutePath().normalize();
+        Path srcDir = base.resolve("products").resolve(original.getId().toString());
+        Path dstDir = base.resolve("products").resolve(copy.getId().toString());
+
+        try {
+            Files.createDirectories(dstDir);
+        } catch (IOException e) {
+            return;
+        }
+
+        List<ProductPhoto> newPhotos = new ArrayList<>();
+        for (ProductPhoto src : sourcePhotos) {
+            String newFilename = UUID.randomUUID() + getExtension(src.getFilename());
+            try {
+                Files.copy(srcDir.resolve(src.getFilename()), dstDir.resolve(newFilename),
+                        StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException e) {
+                continue;
+            }
+            String url = baseUrl + "/products/" + copy.getId() + "/" + newFilename;
+            newPhotos.add(ProductPhoto.builder()
+                    .product(copy)
+                    .filename(newFilename)
+                    .url(url)
+                    .primary(src.isPrimary())
+                    .displayOrder(src.getDisplayOrder())
+                    .build());
+        }
+
+        if (!newPhotos.isEmpty()) {
+            photoRepository.saveAll(newPhotos);
+            // Sync mainImageUrl to primary photo
+            newPhotos.stream().filter(ProductPhoto::isPrimary).findFirst()
+                    .ifPresent(p -> {
+                        copy.setMainImageUrl(p.getUrl());
+                        productRepository.save(copy);
+                    });
+        }
+    }
+
     private Category findCategoryOrThrow(UUID categoryId) {
         return categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new ResourceNotFoundException("Categoria não encontrada"));
@@ -117,6 +228,11 @@ public class ProductService {
     private Product findOrThrow(UUID id) {
         return productRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Produto não encontrado"));
+    }
+
+    private String getExtension(String filename) {
+        if (filename == null || !filename.contains(".")) return ".jpg";
+        return filename.substring(filename.lastIndexOf('.'));
     }
 
     private Specification<Product> buildActiveSpec(UUID categoryId, String search) {
