@@ -2,8 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getProduct } from '../../services/productService';
 import { useCart } from '../../hooks/useCart';
+import { useCustomerName } from '../../hooks/useCustomerName';
 import { formatCurrency } from '../../utils/formatCurrency';
-import { buildSingleProductWhatsApp } from '../../utils/buildWhatsAppMessage';
+import { buildProductWhatsAppUrl } from '../../utils/whatsapp';
+import { WhatsAppNameModal } from '../ui/WhatsAppNameModal';
 import { Button } from '../ui/Button';
 import type { ProductVariation } from '../../types/product';
 
@@ -12,7 +14,6 @@ interface ProductModalProps {
   onClose: () => void;
 }
 
-// Group variations by name: [{ name: 'Cor', values: ['Azul', 'Vermelho'] }]
 function groupVariations(variations: ProductVariation[]) {
   const map = new Map<string, string[]>();
   for (const v of variations) {
@@ -24,10 +25,12 @@ function groupVariations(variations: ProductVariation[]) {
 
 export function ProductModal({ productId, onClose }: ProductModalProps) {
   const { addItem } = useCart();
+  const { name: savedName, saveName } = useCustomerName();
   const [photoIndex, setPhotoIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [selectedVariation, setSelectedVariation] = useState<{ name: string; value: string } | null>(null);
   const [addFeedback, setAddFeedback] = useState(false);
+  const [showNameModal, setShowNameModal] = useState(false);
   const overlayRef = useRef<HTMLDivElement>(null);
 
   const { data: product, isLoading } = useQuery({
@@ -37,17 +40,17 @@ export function ProductModal({ productId, onClose }: ProductModalProps) {
     staleTime: 60_000,
   });
 
-  // Reset state when modal opens for a new product
   useEffect(() => {
     setPhotoIndex(0);
     setQuantity(1);
     setSelectedVariation(null);
     setAddFeedback(false);
+    setShowNameModal(false);
   }, [productId]);
 
-  // ESC to close
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
+      if (showNameModal) return; // name modal handles ESC
       if (e.key === 'Escape') onClose();
       if (e.key === 'ArrowLeft') prevPhoto();
       if (e.key === 'ArrowRight') nextPhoto();
@@ -59,8 +62,7 @@ export function ProductModal({ productId, onClose }: ProductModalProps) {
   if (!productId) return null;
 
   const photos = product?.photos ?? [];
-  const hasPhotos = photos.length > 0;
-  const currentPhotoUrl = hasPhotos ? photos[photoIndex]?.url : product?.mainImageUrl ?? null;
+  const currentPhotoUrl = photos.length > 0 ? photos[photoIndex]?.url : (product?.mainImageUrl ?? null);
   const variationGroups = product ? groupVariations(product.variations) : [];
   const requiresVariation = variationGroups.length > 0;
   const canAdd = !requiresVariation || selectedVariation !== null;
@@ -75,23 +77,29 @@ export function ProductModal({ productId, onClose }: ProductModalProps) {
 
   function handleAdd() {
     if (!product || !canAdd) return;
-    addItem(
-      {
-        productId: product.id,
-        name: product.name,
-        unitPrice: product.displayPrice,
-        selectedVariation,
-      },
-      quantity,
-    );
+    addItem({ productId: product.id, name: product.name, unitPrice: product.displayPrice, selectedVariation }, quantity);
     setAddFeedback(true);
     setTimeout(() => setAddFeedback(false), 2000);
   }
 
-  function handleWhatsApp() {
+  function openProductWhatsApp(customerName: string | null) {
     if (!product) return;
-    const url = buildSingleProductWhatsApp(product.name, quantity, selectedVariation);
+    const url = buildProductWhatsAppUrl(product.name, quantity, selectedVariation, customerName);
     window.open(url, '_blank');
+  }
+
+  function handleWhatsApp() {
+    if (savedName) {
+      openProductWhatsApp(savedName);
+    } else {
+      setShowNameModal(true);
+    }
+  }
+
+  function handleNameConfirm(name: string | null, remember: boolean) {
+    if (name && remember) saveName(name);
+    setShowNameModal(false);
+    openProductWhatsApp(name);
   }
 
   function handleQuantityInput(val: string) {
@@ -110,7 +118,7 @@ export function ProductModal({ productId, onClose }: ProductModalProps) {
           lg:flex-row lg:max-h-[80vh]"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Close button */}
+        {/* Close */}
         <button
           onClick={onClose}
           className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full
@@ -120,9 +128,8 @@ export function ProductModal({ productId, onClose }: ProductModalProps) {
           ✕
         </button>
 
-        {/* ── Left: photo gallery ── */}
+        {/* ── Galeria ── */}
         <div className="relative flex flex-col bg-neutral-100 lg:w-1/2 lg:flex-shrink-0">
-          {/* Main photo */}
           <div className="relative flex-1 overflow-hidden">
             {isLoading ? (
               <div className="flex h-64 items-center justify-center text-neutral-400 lg:h-full">
@@ -140,7 +147,6 @@ export function ProductModal({ productId, onClose }: ProductModalProps) {
               </div>
             )}
 
-            {/* Navigation arrows */}
             {photos.length > 1 && (
               <>
                 <button
@@ -163,7 +169,6 @@ export function ProductModal({ productId, onClose }: ProductModalProps) {
             )}
           </div>
 
-          {/* Thumbnails */}
           {photos.length > 1 && (
             <div className="flex gap-2 overflow-x-auto p-2">
               {photos.map((photo, idx) => (
@@ -180,7 +185,7 @@ export function ProductModal({ productId, onClose }: ProductModalProps) {
           )}
         </div>
 
-        {/* ── Right: product info ── */}
+        {/* ── Info ── */}
         <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-6">
           {isLoading ? (
             <p className="text-sm text-neutral-600">Carregando informações...</p>
@@ -203,22 +208,19 @@ export function ProductModal({ productId, onClose }: ProductModalProps) {
                 <p className="text-sm text-neutral-700 leading-relaxed">{product.description}</p>
               )}
 
-              {/* Variation groups */}
+              {/* Variações */}
               {variationGroups.map((group) => (
                 <div key={group.name}>
                   <p className="mb-2 text-sm font-semibold text-neutral-800">{group.name}:</p>
                   <div className="flex flex-wrap gap-2">
                     {group.values.map((value) => {
                       const isSelected =
-                        selectedVariation?.name === group.name &&
-                        selectedVariation?.value === value;
+                        selectedVariation?.name === group.name && selectedVariation?.value === value;
                       return (
                         <button
                           key={value}
                           onClick={() =>
-                            setSelectedVariation(
-                              isSelected ? null : { name: group.name, value },
-                            )
+                            setSelectedVariation(isSelected ? null : { name: group.name, value })
                           }
                           className={`rounded-full border px-4 py-1.5 text-sm font-medium transition
                             ${
@@ -238,7 +240,7 @@ export function ProductModal({ productId, onClose }: ProductModalProps) {
                 </div>
               ))}
 
-              {/* Quantity selector */}
+              {/* Quantidade */}
               <div>
                 <p className="mb-2 text-sm font-semibold text-neutral-800">Quantidade:</p>
                 <div className="flex items-center gap-2">
@@ -270,7 +272,7 @@ export function ProductModal({ productId, onClose }: ProductModalProps) {
                 </div>
               </div>
 
-              {/* Actions */}
+              {/* Ações */}
               <div className="flex flex-col gap-3 mt-auto">
                 <button
                   onClick={handleAdd}
@@ -290,6 +292,20 @@ export function ProductModal({ productId, onClose }: ProductModalProps) {
                 <Button variant="outline" onClick={handleWhatsApp} className="w-full">
                   Solicitar Orçamento via WhatsApp
                 </Button>
+
+                {savedName && (
+                  <p className="text-center text-xs text-neutral-400">
+                    Enviando como{' '}
+                    <span className="font-medium text-neutral-600">{savedName}</span>
+                    {' · '}
+                    <button
+                      onClick={() => setShowNameModal(true)}
+                      className="text-secondary underline hover:opacity-80"
+                    >
+                      Alterar
+                    </button>
+                  </p>
+                )}
               </div>
             </>
           ) : (
@@ -297,6 +313,13 @@ export function ProductModal({ productId, onClose }: ProductModalProps) {
           )}
         </div>
       </div>
+
+      {/* Modal de nome — z-[60] para ficar acima do ProductModal (z-50) */}
+      <WhatsAppNameModal
+        open={showNameModal}
+        initialName={savedName}
+        onConfirm={handleNameConfirm}
+      />
     </div>
   );
 }
