@@ -68,8 +68,10 @@ Detalhe completo: [`../docs/03-REGRAS_DE_NEGOCIO.md`](../docs/03-REGRAS_DE_NEGOC
   - `CatalogSection` extraído do `CatalogPage` para ser reutilizável em ambas as páginas.
   - Migração `V3__seed_initial_products.sql` aplicada: fornecedor "Emplay Embalagens" + categoria "Sacos Plásticos" + 4 produtos PEBD com preços A/B/C.
 
+- **Clientes** (`/admin/clientes`): CRUD completo implementado. Tabela com nome/telefone/tipo(badge)/origem/data de cadastro/ações. Filtro por nome-email-telefone e por status. Formulário em página (`/admin/clientes/novo` e `/admin/clientes/:id/editar`) com todos os campos; campo `origin` desabilitado na edição (imutável). Endpoints: `GET/POST /api/customers`, `GET/PUT/DELETE /api/customers/{id}`. Regras: soft delete (active=false), email único (verifica todos os registros inclusive inativos), status padrão PROSPECT, origin imutável após cadastro. Migration `V4__alter_customers_add_active_notes.sql` aplicada: colunas `notes` e `active` adicionadas, `phone` e `document` passaram a ser opcionais.
+
 - **Em andamento:** nada no momento.
-- **Falta — restante da Fase 2:** Clientes (Service/Controller/DTO/telas), Pedidos (idem), Fornecedores (CRUD completo), reativação de produto desativado (endpoint dedicado), paginação na tela de produtos admin.
+- **Falta — restante da Fase 2:** Pedidos (Service/Controller/DTO/telas), Fornecedores (CRUD completo), reativação de produto desativado (endpoint dedicado), paginação na tela de produtos admin.
 - **Infra — JDK:** Sistema não tem JDK 21 instalado. JDK disponíveis: ms-17.0.19 e openjdk-26.0.1. JDK 26 é incompatível com Lombok (TypeTag::UNKNOWN). Solucionado alterando `java.version` para 17 no pom.xml e compilando com JDK 17 (ms-17.0.19). Maven via `~/.m2/wrapper/dists/apache-maven-3.9.15-bin/.../mvn.cmd`.
 
 Este arquivo deve ser atualizado conforme o projeto avança — é o resumo vivo do estado do MaxHub.

@@ -35,10 +35,10 @@ public class Customer {
     @Column(nullable = false, length = 160)
     private String name;
 
-    @Column(nullable = false, unique = true, length = 20)
+    @Column(length = 20)
     private String document;
 
-    @Column(nullable = false, length = 20)
+    @Column(length = 20)
     private String phone;
 
     @Column(length = 160)
@@ -59,6 +59,12 @@ public class Customer {
     @Column(nullable = false, length = 20)
     private CustomerOrigin origin;
 
+    @Column(columnDefinition = "TEXT")
+    private String notes;
+
+    @Column(nullable = false)
+    private boolean active;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -70,6 +76,9 @@ public class Customer {
         Instant now = Instant.now();
         createdAt = now;
         updatedAt = now;
+        if (customerType == null) customerType = CustomerType.C;
+        if (status == null) status = CustomerStatus.PROSPECT;
+        active = true;
     }
 
     @PreUpdate

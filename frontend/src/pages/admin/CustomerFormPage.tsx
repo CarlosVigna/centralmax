@@ -1,8 +1,213 @@
+import axios from 'axios';
+import { useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useForm } from 'react-hook-form';
+import { Input } from '../../components/ui/Input';
+import { Select } from '../../components/ui/Select';
+import { Button } from '../../components/ui/Button';
+import { createCustomer, getCustomer, updateCustomer } from '../../services/customerService';
+import { ORIGIN_OPTIONS, STATUS_OPTIONS } from '../../types/customer';
+import type { CustomerRequest } from '../../types/customer';
+
+interface CustomerFormValues {
+  name: string;
+  email: string;
+  phone: string;
+  document: string;
+  status: string;
+  origin: string;
+  notes: string;
+}
+
 export function CustomerFormPage() {
+  const { id } = useParams<{ id: string }>();
+  const isEditing = Boolean(id);
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  const { data: existing, isLoading: loadingCustomer } = useQuery({
+    queryKey: ['customer', id],
+    queryFn: () => getCustomer(id!),
+    enabled: isEditing,
+  });
+
+  const { register, handleSubmit, reset, formState } = useForm<CustomerFormValues>({
+    defaultValues: {
+      name: '',
+      email: '',
+      phone: '',
+      document: '',
+      status: 'PROSPECT',
+      origin: '',
+      notes: '',
+    },
+  });
+
+  useEffect(() => {
+    if (existing) {
+      reset({
+        name: existing.name,
+        email: existing.email ?? '',
+        phone: existing.phone ?? '',
+        document: existing.document ?? '',
+        status: existing.status,
+        origin: existing.origin,
+        notes: existing.notes ?? '',
+      });
+    }
+  }, [existing, reset]);
+
+  const saveMutation = useMutation({
+    mutationFn: (request: CustomerRequest) =>
+      isEditing ? updateCustomer(id!, request) : createCustomer(request),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      if (id) queryClient.invalidateQueries({ queryKey: ['customer', id] });
+      navigate('/admin/clientes');
+    },
+  });
+
+  function onSubmit(values: CustomerFormValues) {
+    const request: CustomerRequest = {
+      name: values.name.trim(),
+      email: values.email.trim() || undefined,
+      phone: values.phone.trim() || undefined,
+      document: values.document.trim() || undefined,
+      status: values.status as CustomerRequest['status'],
+      origin: values.origin as CustomerRequest['origin'],
+      notes: values.notes.trim() || undefined,
+    };
+    saveMutation.mutate(request);
+  }
+
+  const originSelectOptions = [
+    { value: '', label: 'Selecione a origem...' },
+    ...ORIGIN_OPTIONS.map((o) => ({ value: o.value, label: o.label })),
+  ];
+
+  const statusSelectOptions = STATUS_OPTIONS.map((o) => ({ value: o.value, label: o.label }));
+
+  if (isEditing && loadingCustomer) {
+    return <p className="text-sm text-neutral-600">Carregando cliente...</p>;
+  }
+
   return (
-    <div>
-      <h1 className="text-2xl font-bold text-neutral-900">Cliente</h1>
-      <p className="mt-2 text-sm text-neutral-600">Em construção — formulário de cliente chega na Fase 2.</p>
+    <div className="max-w-2xl">
+      <h1 className="mb-6 text-2xl font-bold text-neutral-900">
+        {isEditing ? 'Editar cliente' : 'Novo cliente'}
+      </h1>
+
+      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
+        <Input
+          label="Nome *"
+          id="name"
+          {...register('name', {
+            required: 'Nome é obrigatório',
+            minLength: { value: 2, message: 'Mínimo 2 caracteres' },
+            maxLength: { value: 160, message: 'Máximo 160 caracteres' },
+          })}
+          error={formState.errors.name?.message}
+        />
+
+        <Input
+          label="E-mail"
+          id="email"
+          type="email"
+          placeholder="email@exemplo.com"
+          {...register('email', {
+            pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'E-mail inválido' },
+          })}
+          error={formState.errors.email?.message}
+        />
+
+        <div className="grid grid-cols-2 gap-4">
+          <Input
+            label="Telefone"
+            id="phone"
+            placeholder="(17) 99999-9999"
+            {...register('phone', {
+              maxLength: { value: 20, message: 'Máximo 20 caracteres' },
+            })}
+            error={formState.errors.phone?.message}
+          />
+          <Input
+            label="CPF / CNPJ"
+            id="document"
+            placeholder="000.000.000-00"
+            {...register('document', {
+              maxLength: { value: 20, message: 'Máximo 20 caracteres' },
+            })}
+            error={formState.errors.document?.message}
+          />
+        </div>
+
+        <Select
+          label="Tipo"
+          id="status"
+          options={statusSelectOptions}
+          {...register('status')}
+        />
+
+        <div className="flex flex-col gap-1">
+          <label htmlFor="origin" className="text-sm font-medium text-neutral-900">
+            Origem {!isEditing && '*'}
+          </label>
+          <select
+            id="origin"
+            disabled={isEditing}
+            className="rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-light disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-500"
+            {...register('origin', {
+              validate: (v) => isEditing || Boolean(v) || 'Origem é obrigatória',
+            })}
+          >
+            {originSelectOptions.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+          {!isEditing && formState.errors.origin && (
+            <p className="text-xs text-danger">{formState.errors.origin.message}</p>
+          )}
+          {isEditing && (
+            <p className="text-xs text-neutral-500">A origem não pode ser alterada após o cadastro.</p>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label htmlFor="notes" className="text-sm font-medium text-neutral-900">
+            Observações
+          </label>
+          <textarea
+            id="notes"
+            rows={3}
+            placeholder="Observações internas sobre o cliente..."
+            className="rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-light"
+            {...register('notes', {
+              maxLength: { value: 2000, message: 'Máximo 2000 caracteres' },
+            })}
+          />
+          {formState.errors.notes && (
+            <p className="text-xs text-danger">{formState.errors.notes.message}</p>
+          )}
+        </div>
+
+        {saveMutation.isError && (
+          <p className="text-sm text-danger">
+            {axios.isAxiosError(saveMutation.error)
+              ? (saveMutation.error.response?.data?.message ?? 'Erro ao salvar. Tente novamente.')
+              : 'Erro ao salvar. Tente novamente.'}
+          </p>
+        )}
+
+        <div className="flex gap-3">
+          <Button type="submit" disabled={formState.isSubmitting || saveMutation.isPending}>
+            {isEditing ? 'Salvar alterações' : 'Cadastrar cliente'}
+          </Button>
+          <Button type="button" variant="outline" onClick={() => navigate('/admin/clientes')}>
+            Cancelar
+          </Button>
+        </div>
+      </form>
     </div>
   );
 }
