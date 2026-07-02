@@ -58,6 +58,11 @@ export async function deleteProduct(id: string): Promise<void> {
   await api.delete(`/products/${id}`);
 }
 
+export async function activateProduct(id: string): Promise<ProductAdmin> {
+  const { data } = await api.patch<ProductAdmin>(`/products/${id}/activate`);
+  return data;
+}
+
 export async function duplicateProduct(
   id: string,
   copyPhotos: boolean,

@@ -1,0 +1,3 @@
+ALTER TABLE suppliers
+    ADD COLUMN IF NOT EXISTS contact_name VARCHAR(160),
+    ADD COLUMN IF NOT EXISTS notes       TEXT;

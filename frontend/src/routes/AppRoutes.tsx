@@ -22,6 +22,8 @@ import { OrdersPage } from '../pages/admin/OrdersPage';
 import { OrderDetailPage } from '../pages/admin/OrderDetailPage';
 import { OrderFormPage } from '../pages/admin/OrderFormPage';
 import { FinancialPage } from '../pages/admin/FinancialPage';
+import { UsersPage } from '../pages/admin/UsersPage';
+import { ReportsPage } from '../pages/admin/ReportsPage';
 
 export function AppRoutes() {
   return (
@@ -53,6 +55,8 @@ export function AppRoutes() {
           <Route path="pedidos" element={<OrdersPage />} />
           <Route path="pedidos/novo" element={<OrderFormPage />} />
           <Route path="pedidos/:id" element={<OrderDetailPage />} />
+          <Route path="usuarios" element={<UsersPage />} />
+          <Route path="relatorios" element={<ReportsPage />} />
         </Route>
       </Route>
 

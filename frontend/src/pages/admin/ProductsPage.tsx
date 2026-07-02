@@ -7,7 +7,7 @@ import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
-import { listAdminProducts, deleteProduct, duplicateProduct } from '../../services/productService';
+import { listAdminProducts, deleteProduct, duplicateProduct, activateProduct } from '../../services/productService';
 import { listAllCategories } from '../../services/categoryService';
 import { formatCurrency } from '../../utils/formatCurrency';
 import type { ProductAdmin } from '../../types/product';
@@ -43,6 +43,14 @@ export function ProductsPage() {
       queryClient.invalidateQueries({ queryKey: ['admin-products'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
       setConfirmDelete(null);
+    },
+  });
+
+  const activateMutation = useMutation({
+    mutationFn: (id: string) => activateProduct(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
     },
   });
 
@@ -121,9 +129,18 @@ export function ProductsPage() {
           >
             Copiar
           </Button>
-          {row.status === 'ATIVO' && (
+          {row.status === 'ATIVO' ? (
             <Button size="sm" variant="danger" onClick={() => setConfirmDelete(row)}>
               Desativar
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={activateMutation.isPending}
+              onClick={() => activateMutation.mutate(row.id)}
+            >
+              Reativar
             </Button>
           )}
         </div>

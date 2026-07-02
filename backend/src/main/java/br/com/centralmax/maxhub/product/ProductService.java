@@ -113,6 +113,13 @@ public class ProductService {
     }
 
     @Transactional
+    public ProductAdminResponse activate(UUID id) {
+        Product product = findOrThrow(id);
+        product.setStatus(ProductStatus.ATIVO);
+        return productMapper.toAdminResponse(productRepository.save(product));
+    }
+
+    @Transactional
     public ProductAdminResponse duplicate(UUID id, boolean copyPhotos) {
         Product original = findOrThrow(id);
 

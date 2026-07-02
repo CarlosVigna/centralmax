@@ -27,4 +27,46 @@ public interface OrderRepository extends JpaRepository<Order, UUID>, JpaSpecific
     List<Order> findBoardOrders(@Param("statuses") List<OrderStatus> statuses);
 
     List<Order> findTop5ByStatusAndActiveOrderByCreatedAtDesc(OrderStatus status, boolean active);
+
+    // ── Report queries ────────────────────────────────────────────────
+
+    @Query("SELECT COALESCE(SUM(o.totalAmount), 0) FROM Order o " +
+           "WHERE o.createdAt >= :start AND o.createdAt < :end AND o.active = true AND o.status <> :excluded")
+    java.math.BigDecimal sumRevenueInPeriod(@Param("start") Instant start,
+                                            @Param("end") Instant end,
+                                            @Param("excluded") OrderStatus excluded);
+
+    @Query(value = """
+            SELECT o.status, COUNT(*) AS cnt
+            FROM orders o
+            WHERE o.created_at >= :start AND o.created_at < :end AND o.active = true
+            GROUP BY o.status
+            """, nativeQuery = true)
+    List<Object[]> countByStatusInPeriod(@Param("start") Instant start, @Param("end") Instant end);
+
+    @Query(value = """
+            SELECT oi.product_name,
+                   SUM(oi.quantity)   AS qty,
+                   COALESCE(SUM(oi.subtotal), 0) AS revenue
+            FROM order_items oi
+            JOIN orders o ON o.id = oi.order_id
+            WHERE o.created_at >= :start AND o.created_at < :end
+              AND o.active = true AND o.status != 'CANCELADO'
+            GROUP BY oi.product_name
+            ORDER BY qty DESC
+            LIMIT 5
+            """, nativeQuery = true)
+    List<Object[]> findTopProductsInPeriod(@Param("start") Instant start, @Param("end") Instant end);
+
+    @Query(value = """
+            SELECT DATE(o.created_at AT TIME ZONE 'UTC')            AS day,
+                   COALESCE(SUM(o.total_amount), 0)                 AS revenue,
+                   COUNT(*)                                          AS orders
+            FROM orders o
+            WHERE o.created_at >= :start AND o.created_at < :end
+              AND o.active = true AND o.status != 'CANCELADO'
+            GROUP BY DATE(o.created_at AT TIME ZONE 'UTC')
+            ORDER BY day
+            """, nativeQuery = true)
+    List<Object[]> findRevenueByDayInPeriod(@Param("start") Instant start, @Param("end") Instant end);
 }

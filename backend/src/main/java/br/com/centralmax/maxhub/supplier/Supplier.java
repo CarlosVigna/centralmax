@@ -33,6 +33,9 @@ public class Supplier {
     @Column(nullable = false, length = 160)
     private String name;
 
+    @Column(name = "contact_name", length = 160)
+    private String contactName;
+
     @Column(unique = true, length = 20)
     private String document;
 
@@ -41,6 +44,9 @@ public class Supplier {
 
     @Column(length = 160)
     private String email;
+
+    @Column(columnDefinition = "TEXT")
+    private String notes;
 
     @Column(nullable = false)
     private boolean active;
@@ -56,6 +62,7 @@ public class Supplier {
         Instant now = Instant.now();
         createdAt = now;
         updatedAt = now;
+        active = true;
     }
 
     @PreUpdate

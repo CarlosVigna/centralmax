@@ -87,6 +87,11 @@ public class ProductController {
         return ResponseEntity.noContent().build();
     }
 
+    @PatchMapping("/{id}/activate")
+    public ResponseEntity<ProductAdminResponse> activate(@PathVariable UUID id) {
+        return ResponseEntity.ok(productService.activate(id));
+    }
+
     // ── Duplicate ────────────────────────────────────────────────────
 
     @PostMapping("/{id}/duplicate")

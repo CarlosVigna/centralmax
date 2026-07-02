@@ -29,3 +29,8 @@ export async function updateCategory(id: string, name: string): Promise<Category
 export async function deleteCategory(id: string): Promise<void> {
   await api.delete(`/categories/${id}`);
 }
+
+export async function activateCategory(id: string): Promise<CategoryFull> {
+  const { data } = await api.patch<CategoryFull>(`/categories/${id}/activate`);
+  return data;
+}

@@ -85,6 +85,13 @@ public class CategoryService {
         categoryRepository.save(category);
     }
 
+    @Transactional
+    public CategoryResponse activate(UUID id) {
+        Category category = findOrThrow(id);
+        category.setActive(true);
+        return categoryMapper.toResponse(categoryRepository.save(category));
+    }
+
     private Category findOrThrow(UUID id) {
         return categoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Categoria não encontrada"));

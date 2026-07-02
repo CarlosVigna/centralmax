@@ -8,6 +8,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import {
+  activateCategory,
   createCategory,
   deleteCategory,
   listAllCategories,
@@ -48,6 +49,14 @@ export function CategoriesPage() {
       queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       setConfirmDelete(null);
+    },
+  });
+
+  const activateMutation = useMutation({
+    mutationFn: (id: string) => activateCategory(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
     },
   });
 
@@ -102,9 +111,18 @@ export function CategoriesPage() {
           <Button size="sm" variant="outline" onClick={() => openEdit(row)}>
             Editar
           </Button>
-          {row.active && (
+          {row.active ? (
             <Button size="sm" variant="danger" onClick={() => setConfirmDelete(row)}>
               Desativar
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={activateMutation.isPending}
+              onClick={() => activateMutation.mutate(row.id)}
+            >
+              Reativar
             </Button>
           )}
         </div>

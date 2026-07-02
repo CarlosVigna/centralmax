@@ -11,6 +11,8 @@ const LINKS = [
   { to: '/admin/expedicao', label: 'Expedição', showBadge: true },
   { to: '/admin/financeiro', label: 'Financeiro' },
   { to: '/admin/pedidos', label: 'Pedidos' },
+  { to: '/admin/usuarios', label: 'Usuários' },
+  { to: '/admin/relatorios', label: 'Relatórios' },
 ];
 
 export function AdminSidebar() {

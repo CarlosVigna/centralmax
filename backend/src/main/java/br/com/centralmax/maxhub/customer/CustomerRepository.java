@@ -2,7 +2,11 @@ package br.com.centralmax.maxhub.customer;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -11,4 +15,38 @@ public interface CustomerRepository extends JpaRepository<Customer, UUID>, JpaSp
     boolean existsByEmail(String email);
 
     boolean existsByEmailAndIdNot(String email, UUID id);
+
+    // ── Report queries ────────────────────────────────────────────────
+
+    @Query("SELECT COUNT(c) FROM Customer c WHERE c.createdAt >= :start AND c.createdAt < :end AND c.active = true")
+    long countNewInPeriod(@Param("start") Instant start, @Param("end") Instant end);
+
+    @Query(value = """
+            SELECT c.status, COUNT(*) AS cnt
+            FROM customers c
+            WHERE c.active = true
+            GROUP BY c.status
+            """, nativeQuery = true)
+    List<Object[]> countByStatus();
+
+    @Query(value = """
+            SELECT c.origin, COUNT(*) AS cnt
+            FROM customers c
+            WHERE c.active = true
+            GROUP BY c.origin
+            """, nativeQuery = true)
+    List<Object[]> countByOrigin();
+
+    @Query(value = """
+            SELECT c.name,
+                   COUNT(o.id)                        AS total_orders,
+                   COALESCE(SUM(o.total_amount), 0)   AS total_spent
+            FROM customers c
+            JOIN orders o ON o.customer_id = c.id
+            WHERE o.active = true AND o.status != 'CANCELADO'
+            GROUP BY c.id, c.name
+            ORDER BY total_spent DESC
+            LIMIT 5
+            """, nativeQuery = true)
+    List<Object[]> findTopCustomers();
 }
