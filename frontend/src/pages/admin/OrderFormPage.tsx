@@ -9,7 +9,6 @@ import { createOrder } from '../../services/orderService';
 import { listCustomers } from '../../services/customerService';
 import { listAdminProducts } from '../../services/productService';
 import type { Customer } from '../../types/customer';
-import type { ProductAdmin } from '../../types/product';
 import type { OrderItemRequest } from '../../types/order';
 
 interface CartItem {
