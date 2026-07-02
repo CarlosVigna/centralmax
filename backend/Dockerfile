@@ -1,9 +1,9 @@
-# Force rebuild - CORS fix 2026-07-02
 FROM eclipse-temurin:21-jdk-alpine AS build
 WORKDIR /app
 COPY pom.xml .
+RUN apk add --no-cache maven && mvn dependency:go-offline -B
 COPY src ./src
-RUN apk add --no-cache maven && mvn clean package -DskipTests
+RUN mvn clean package -DskipTests
 
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
