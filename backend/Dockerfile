@@ -1,3 +1,4 @@
+# Force rebuild - CORS fix 2026-07-02
 FROM eclipse-temurin:21-jdk-alpine AS build
 WORKDIR /app
 COPY pom.xml .
