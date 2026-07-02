@@ -1,5 +1,7 @@
 package br.com.centralmax.maxhub.dashboard;
 
+import java.math.BigDecimal;
+
 public record DashboardResponse(
         long activeProducts,
         long totalCustomers,
@@ -8,5 +10,7 @@ public record DashboardResponse(
         long ordersOutForDelivery,
         long ordersToday,
         long contactsToday,
-        long overdueContacts
+        long overdueContacts,
+        BigDecimal saldoMes,
+        BigDecimal aReceber
 ) {}

@@ -21,6 +21,7 @@ import { ExpedicaoPage } from '../pages/admin/ExpedicaoPage';
 import { OrdersPage } from '../pages/admin/OrdersPage';
 import { OrderDetailPage } from '../pages/admin/OrderDetailPage';
 import { OrderFormPage } from '../pages/admin/OrderFormPage';
+import { FinancialPage } from '../pages/admin/FinancialPage';
 
 export function AppRoutes() {
   return (
@@ -48,6 +49,7 @@ export function AppRoutes() {
           <Route path="clientes/:id" element={<CustomerDetailPage />} />
           <Route path="agenda" element={<AgendaPage />} />
           <Route path="expedicao" element={<ExpedicaoPage />} />
+          <Route path="financeiro" element={<FinancialPage />} />
           <Route path="pedidos" element={<OrdersPage />} />
           <Route path="pedidos/novo" element={<OrderFormPage />} />
           <Route path="pedidos/:id" element={<OrderDetailPage />} />

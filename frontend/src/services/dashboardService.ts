@@ -9,6 +9,8 @@ export interface DashboardStats {
   ordersToday: number;
   contactsToday: number;
   overdueContacts: number;
+  saldoMes: number;
+  aReceber: number;
 }
 
 export async function getDashboard(): Promise<DashboardStats> {

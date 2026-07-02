@@ -47,7 +47,7 @@ export function DashboardPage() {
               linkLabel="Ver board →"
             />
           </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
             <StatCard
               label="Contatos hoje"
               value={data.contactsToday}
@@ -57,6 +57,24 @@ export function DashboardPage() {
               label="Contatos atrasados"
               value={data.overdueContacts}
               accent="red"
+            />
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <LinkStatCard
+              label="Saldo do Mês"
+              value={data.saldoMes}
+              accent={data.saldoMes >= 0 ? 'green' : 'red'}
+              href="/admin/financeiro"
+              linkLabel="Ver financeiro →"
+              currency
+            />
+            <LinkStatCard
+              label="A Receber"
+              value={data.aReceber}
+              accent="blue"
+              href="/admin/financeiro?status=PENDENTE&type=RECEITA"
+              linkLabel="Ver lançamentos →"
+              currency
             />
           </div>
         </>
@@ -91,20 +109,23 @@ function LinkStatCard({
   accent,
   href,
   linkLabel,
+  currency,
 }: {
   label: string;
   value: number;
   accent?: 'orange' | 'blue' | 'gray' | 'green' | 'red';
   href: string;
   linkLabel: string;
+  currency?: boolean;
 }) {
   const accentClass = resolveAccent(accent);
+  const display = currency
+    ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
+    : value.toLocaleString('pt-BR');
   return (
     <Card>
       <p className="text-sm font-medium text-neutral-600">{label}</p>
-      <p className={`mt-2 text-3xl font-bold ${accentClass}`}>
-        {value.toLocaleString('pt-BR')}
-      </p>
+      <p className={`mt-2 text-2xl font-bold ${accentClass}`}>{display}</p>
       <Link to={href} className="mt-2 block text-xs text-primary hover:underline">
         {linkLabel}
       </Link>

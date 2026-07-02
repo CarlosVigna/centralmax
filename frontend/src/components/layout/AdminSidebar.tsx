@@ -9,6 +9,7 @@ const LINKS = [
   { to: '/admin/clientes', label: 'Clientes' },
   { to: '/admin/agenda', label: 'Agenda' },
   { to: '/admin/expedicao', label: 'Expedição', showBadge: true },
+  { to: '/admin/financeiro', label: 'Financeiro' },
   { to: '/admin/pedidos', label: 'Pedidos' },
 ];
 

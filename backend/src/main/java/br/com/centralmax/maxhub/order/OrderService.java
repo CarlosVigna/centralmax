@@ -5,6 +5,10 @@ import br.com.centralmax.maxhub.common.exception.ResourceNotFoundException;
 import br.com.centralmax.maxhub.common.response.PageResponse;
 import br.com.centralmax.maxhub.customer.Customer;
 import br.com.centralmax.maxhub.customer.CustomerRepository;
+import br.com.centralmax.maxhub.financial.FinancialEntry;
+import br.com.centralmax.maxhub.financial.FinancialEntryRepository;
+import br.com.centralmax.maxhub.financial.FinancialEntryStatus;
+import br.com.centralmax.maxhub.financial.FinancialEntryType;
 import br.com.centralmax.maxhub.order.dto.OrderRequest;
 import br.com.centralmax.maxhub.order.dto.OrderResponse;
 import br.com.centralmax.maxhub.order.dto.OrderStatusUpdateRequest;
@@ -24,6 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.Year;
 import java.util.ArrayList;
 import java.util.List;
@@ -42,6 +47,7 @@ public class OrderService {
     private final CustomerRepository customerRepository;
     private final ProductRepository productRepository;
     private final StockMovementRepository stockMovementRepository;
+    private final FinancialEntryRepository financialEntryRepository;
     private final OrderMapper orderMapper;
 
     @Transactional(readOnly = true)
@@ -145,7 +151,21 @@ public class OrderService {
         Order order = findOrThrow(id);
         validateStatusTransition(order.getStatus(), request.status());
         order.setStatus(request.status());
-        return orderMapper.toResponse(orderRepository.save(order));
+        order = orderRepository.save(order);
+
+        if (request.status() == OrderStatus.CONCLUIDO) {
+            FinancialEntry entry = FinancialEntry.builder()
+                    .type(FinancialEntryType.RECEITA)
+                    .status(FinancialEntryStatus.PENDENTE)
+                    .description("Pedido " + order.getOrderNumber())
+                    .amount(order.getTotalAmount())
+                    .dueDate(LocalDate.now())
+                    .order(order)
+                    .build();
+            financialEntryRepository.save(entry);
+        }
+
+        return orderMapper.toResponse(order);
     }
 
     @Transactional
