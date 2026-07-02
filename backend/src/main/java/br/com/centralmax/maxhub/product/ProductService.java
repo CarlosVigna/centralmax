@@ -18,7 +18,6 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -26,11 +25,6 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -48,12 +42,6 @@ public class ProductService {
 
     @PersistenceContext
     private EntityManager entityManager;
-
-    @Value("${app.upload.dir}")
-    private String uploadDir;
-
-    @Value("${app.upload.base-url}")
-    private String baseUrl;
 
     @Transactional(readOnly = true)
     public PageResponse<ProductSummaryResponse> list(UUID categoryId, String search, int page, int size) {
@@ -146,7 +134,6 @@ public class ProductService {
             copyPhotos(original, copy);
         }
 
-        // Copy active variations
         List<ProductVariation> sourceVariations =
                 variationRepository.findByProductIdAndActiveTrueOrderByCreatedAtAsc(original.getId());
 
@@ -168,34 +155,20 @@ public class ProductService {
         return productMapper.toAdminResponse(copy);
     }
 
+    // Cria novos registros de foto apontando para os mesmos objetos do R2.
+    // O objeto de storage é compartilhado entre original e cópia; excluir a foto
+    // de um produto pode tornar a URL da outra inválida — limitação conhecida do
+    // StorageService que não expõe CopyObject. Ver ADR 003.
     private void copyPhotos(Product original, Product copy) {
         List<ProductPhoto> sourcePhotos =
                 photoRepository.findByProductIdOrderByDisplayOrderAsc(original.getId());
 
-        Path base = Paths.get(uploadDir).toAbsolutePath().normalize();
-        Path srcDir = base.resolve("products").resolve(original.getId().toString());
-        Path dstDir = base.resolve("products").resolve(copy.getId().toString());
-
-        try {
-            Files.createDirectories(dstDir);
-        } catch (IOException e) {
-            return;
-        }
-
         List<ProductPhoto> newPhotos = new ArrayList<>();
         for (ProductPhoto src : sourcePhotos) {
-            String newFilename = UUID.randomUUID() + getExtension(src.getFilename());
-            try {
-                Files.copy(srcDir.resolve(src.getFilename()), dstDir.resolve(newFilename),
-                        StandardCopyOption.REPLACE_EXISTING);
-            } catch (IOException e) {
-                continue;
-            }
-            String url = baseUrl + "/products/" + copy.getId() + "/" + newFilename;
             newPhotos.add(ProductPhoto.builder()
                     .product(copy)
-                    .filename(newFilename)
-                    .url(url)
+                    .filename(src.getFilename())
+                    .url(src.getUrl())
                     .primary(src.isPrimary())
                     .displayOrder(src.getDisplayOrder())
                     .build());
@@ -203,7 +176,6 @@ public class ProductService {
 
         if (!newPhotos.isEmpty()) {
             photoRepository.saveAll(newPhotos);
-            // Sync mainImageUrl to primary photo
             newPhotos.stream().filter(ProductPhoto::isPrimary).findFirst()
                     .ifPresent(p -> {
                         copy.setMainImageUrl(p.getUrl());
@@ -228,11 +200,6 @@ public class ProductService {
     private Product findOrThrow(UUID id) {
         return productRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Produto não encontrado"));
-    }
-
-    private String getExtension(String filename) {
-        if (filename == null || !filename.contains(".")) return ".jpg";
-        return filename.substring(filename.lastIndexOf('.'));
     }
 
     private Specification<Product> buildActiveSpec(UUID categoryId, String search) {

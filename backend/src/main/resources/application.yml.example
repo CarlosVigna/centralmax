@@ -28,3 +28,10 @@ app:
     expiration-ms: 3600000
   cors:
     allowed-origin: http://localhost:5173
+  storage:
+    type: r2
+    endpoint: https://SEU_ACCOUNT_ID.r2.cloudflarestorage.com
+    bucket: SEU_BUCKET
+    access-key: SEU_ACCESS_KEY
+    secret-key: SEU_SECRET_KEY
+    public-url: https://pub-SEU_HASH.r2.dev

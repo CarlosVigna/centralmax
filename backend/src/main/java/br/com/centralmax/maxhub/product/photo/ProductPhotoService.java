@@ -6,16 +6,13 @@ import br.com.centralmax.maxhub.product.Product;
 import br.com.centralmax.maxhub.product.ProductRepository;
 import br.com.centralmax.maxhub.product.photo.dto.PhotoReorderRequest;
 import br.com.centralmax.maxhub.product.photo.dto.ProductPhotoResponse;
+import br.com.centralmax.maxhub.storage.StorageService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.UUID;
 
@@ -29,12 +26,7 @@ public class ProductPhotoService {
     private final ProductPhotoRepository photoRepository;
     private final ProductPhotoMapper photoMapper;
     private final ProductRepository productRepository;
-
-    @Value("${app.upload.dir}")
-    private String uploadDir;
-
-    @Value("${app.upload.base-url}")
-    private String baseUrl;
+    private final StorageService storageService;
 
     @Transactional
     public ProductPhotoResponse upload(UUID productId, MultipartFile file) {
@@ -49,21 +41,16 @@ public class ProductPhotoService {
             throw new BusinessException("Limite de " + MAX_PHOTOS + " fotos por produto atingido.");
         }
 
-        String extension = getExtension(file.getOriginalFilename());
-        String filename = UUID.randomUUID() + extension;
-        Path dir = Paths.get(uploadDir).toAbsolutePath().normalize()
-                .resolve("products").resolve(productId.toString());
-        Path filePath = dir.resolve(filename);
-
+        String url;
+        String filename;
         try {
-            Files.createDirectories(dir);
-            file.transferTo(filePath.toFile());
+            url = storageService.upload(file, "products/" + productId);
+            filename = url.substring(url.lastIndexOf('/') + 1);
         } catch (IOException e) {
-            throw new BusinessException("Erro ao salvar arquivo: " + e.getMessage());
+            throw new BusinessException("Erro ao enviar arquivo: " + e.getMessage());
         }
 
         boolean isPrimary = count == 0;
-        String url = baseUrl + "/products/" + productId + "/" + filename;
 
         ProductPhoto photo = ProductPhoto.builder()
                 .product(product)
@@ -97,19 +84,15 @@ public class ProductPhotoService {
                 .filter(p -> p.getProduct().getId().equals(productId))
                 .orElseThrow(() -> new ResourceNotFoundException("Foto não encontrada"));
 
-        // Delete physical file
-        Path filePath = Paths.get(uploadDir).toAbsolutePath().normalize()
-                .resolve("products").resolve(productId.toString()).resolve(photo.getFilename());
         try {
-            Files.deleteIfExists(filePath);
+            storageService.delete(photo.getUrl());
         } catch (IOException e) {
-            // Log but don't block — DB record must be removed regardless
+            // Log mas não bloqueia — registro no banco deve ser removido de qualquer forma
         }
 
         boolean wasPrimary = photo.isPrimary();
         photoRepository.delete(photo);
 
-        // Promote next photo to primary if deleted was the cover
         if (wasPrimary) {
             List<ProductPhoto> remaining = photoRepository.findByProductIdOrderByDisplayOrderAsc(productId);
             if (!remaining.isEmpty()) {
@@ -140,12 +123,5 @@ public class ProductPhotoService {
     private Product findProductOrThrow(UUID id) {
         return productRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Produto não encontrado"));
-    }
-
-    private String getExtension(String filename) {
-        if (filename == null || !filename.contains(".")) {
-            return ".jpg";
-        }
-        return filename.substring(filename.lastIndexOf('.'));
     }
 }
