@@ -37,9 +37,10 @@ public class OrderController {
     public ResponseEntity<PageResponse<OrderResponse>> list(
             @RequestParam(required = false) OrderStatus status,
             @RequestParam(required = false) String search,
+            @RequestParam(required = false) UUID customerId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(orderService.list(status, search, page, size));
+        return ResponseEntity.ok(orderService.list(status, search, customerId, page, size));
     }
 
     @GetMapping("/{id}")
@@ -50,6 +51,11 @@ public class OrderController {
     @PostMapping
     public ResponseEntity<OrderResponse> create(@Valid @RequestBody OrderRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(orderService.create(request));
+    }
+
+    @PostMapping("/{id}/duplicate")
+    public ResponseEntity<OrderResponse> duplicate(@PathVariable UUID id) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(orderService.duplicate(id));
     }
 
     @PatchMapping("/{id}/status")

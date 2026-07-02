@@ -65,9 +65,11 @@ export function ProductFormPage() {
     },
   });
 
-  // Watch fields for live preview
+  // Watch fields for live preview and price validation
   const watchedName = useWatch({ control, name: 'name' });
   const watchedDesc = useWatch({ control, name: 'description' });
+  const watchedPriceA = useWatch({ control, name: 'priceA' });
+  const watchedPriceB = useWatch({ control, name: 'priceB' });
   const watchedPriceC = useWatch({ control, name: 'priceC' });
   const watchedCategoryId = useWatch({ control, name: 'categoryId' });
   const watchedImageUrl = useWatch({ control, name: 'mainImageUrl' });
@@ -227,6 +229,24 @@ export function ProductFormPage() {
                 error={formState.errors.priceC?.message}
               />
             </div>
+            {/* Real-time price order validation */}
+            {(() => {
+              const a = parseFloat(watchedPriceA);
+              const b = parseFloat(watchedPriceB);
+              const c = parseFloat(watchedPriceC);
+              const errs: string[] = [];
+              if (!isNaN(a) && !isNaN(b) && a > 0 && b > 0 && b < a)
+                errs.push('Preço B (intermediário) deve ser ≥ Preço A (atacado)');
+              if (!isNaN(b) && !isNaN(c) && b > 0 && c > 0 && c < b)
+                errs.push('Preço C (varejo) deve ser ≥ Preço B (intermediário)');
+              return errs.length > 0 ? (
+                <div className="space-y-1">
+                  {errs.map((err, i) => (
+                    <p key={i} className="text-xs text-amber-600">⚠ {err}</p>
+                  ))}
+                </div>
+              ) : null;
+            })()}
 
             <Input
               label="URL da imagem (legado)"

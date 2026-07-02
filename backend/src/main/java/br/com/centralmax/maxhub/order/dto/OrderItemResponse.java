@@ -9,5 +9,7 @@ public record OrderItemResponse(
         String productName,
         Integer quantity,
         BigDecimal unitPrice,
+        BigDecimal discountPercent,
+        BigDecimal finalUnitPrice,
         BigDecimal subtotal
 ) {}

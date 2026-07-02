@@ -15,6 +15,7 @@ public record OrderResponse(
         String customerDisplayPhone,
         OrderStatus status,
         String statusLabel,
+        String paymentStatus,
         String notes,
         BigDecimal totalAmount,
         List<OrderItemResponse> items,

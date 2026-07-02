@@ -2,6 +2,7 @@ package br.com.centralmax.maxhub.customer.dto;
 
 import br.com.centralmax.maxhub.customer.CustomerOrigin;
 import br.com.centralmax.maxhub.customer.CustomerStatus;
+import br.com.centralmax.maxhub.customer.CustomerType;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -14,6 +15,7 @@ public record CustomerResponse(
         String document,
         CustomerStatus status,
         String statusLabel,
+        CustomerType customerType,
         CustomerOrigin origin,
         String originLabel,
         String notes,

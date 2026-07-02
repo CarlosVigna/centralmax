@@ -78,7 +78,13 @@ export function ExpedicaoPage() {
     <div className="flex flex-col gap-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-neutral-900">Central de Expedição</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-neutral-900">Central de Expedição</h1>
+          <p className="mt-0.5 text-sm text-neutral-500">
+            Visão operacional dos pedidos em andamento. Para histórico completo,{' '}
+            <Link to="/admin/pedidos" className="text-primary hover:underline">acesse Pedidos</Link>.
+          </p>
+        </div>
         <div className="flex items-center gap-3">
           <span className="text-xs text-neutral-400">
             Atualizado há {updatedSecondsAgo}s

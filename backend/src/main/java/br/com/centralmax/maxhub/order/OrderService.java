@@ -5,6 +5,7 @@ import br.com.centralmax.maxhub.common.exception.ResourceNotFoundException;
 import br.com.centralmax.maxhub.common.response.PageResponse;
 import br.com.centralmax.maxhub.customer.Customer;
 import br.com.centralmax.maxhub.customer.CustomerRepository;
+import br.com.centralmax.maxhub.customer.CustomerType;
 import br.com.centralmax.maxhub.financial.FinancialEntry;
 import br.com.centralmax.maxhub.financial.FinancialEntryRepository;
 import br.com.centralmax.maxhub.financial.FinancialEntryStatus;
@@ -28,6 +29,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.Year;
 import java.util.ArrayList;
@@ -51,9 +53,9 @@ public class OrderService {
     private final OrderMapper orderMapper;
 
     @Transactional(readOnly = true)
-    public PageResponse<OrderResponse> list(OrderStatus status, String search, int page, int size) {
+    public PageResponse<OrderResponse> list(OrderStatus status, String search, UUID customerId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        Page<Order> result = orderRepository.findAll(buildSpec(status, search), pageable);
+        Page<Order> result = orderRepository.findAll(buildSpec(status, search, customerId), pageable);
         return PageResponse.from(result.map(orderMapper::toResponse));
     }
 
@@ -73,10 +75,10 @@ public class OrderService {
 
     @Transactional
     public OrderResponse create(OrderRequest request) {
-        // Resolve customer or walk-in info
         Customer customer = null;
         String customerName;
         String customerPhone;
+        CustomerType customerType = CustomerType.C;
 
         if (request.customerId() != null) {
             customer = customerRepository.findById(request.customerId())
@@ -84,6 +86,7 @@ public class OrderService {
                     .orElseThrow(() -> new ResourceNotFoundException("Cliente não encontrado"));
             customerName = customer.getName();
             customerPhone = customer.getPhone();
+            customerType = customer.getCustomerType() != null ? customer.getCustomerType() : CustomerType.C;
         } else {
             if (request.customerName() == null || request.customerName().isBlank()) {
                 throw new BusinessException("Nome do cliente é obrigatório para pedido avulso");
@@ -92,10 +95,8 @@ public class OrderService {
             customerPhone = request.customerPhone() != null ? request.customerPhone().trim() : null;
         }
 
-        // Generate order number
         String orderNumber = generateOrderNumber();
 
-        // Build and save order shell first (items need order reference)
         Order order = Order.builder()
                 .orderNumber(orderNumber)
                 .customer(customer)
@@ -107,7 +108,6 @@ public class OrderService {
                 .build();
         order = orderRepository.save(order);
 
-        // Build items and stock movements
         BigDecimal total = BigDecimal.ZERO;
         List<StockMovement> movements = new ArrayList<>();
 
@@ -116,8 +116,11 @@ public class OrderService {
                     .orElseThrow(() -> new ResourceNotFoundException(
                             "Produto " + itemReq.productId() + " não encontrado"));
 
-            BigDecimal unitPrice = product.getPriceC();
-            BigDecimal subtotal = unitPrice.multiply(BigDecimal.valueOf(itemReq.quantity()));
+            BigDecimal unitPrice = resolvePrice(product, customerType);
+            BigDecimal discount = itemReq.discountPercent() != null
+                    ? itemReq.discountPercent() : BigDecimal.ZERO;
+            BigDecimal finalPrice = applyDiscount(unitPrice, discount);
+            BigDecimal subtotal = finalPrice.multiply(BigDecimal.valueOf(itemReq.quantity()));
 
             OrderItem item = OrderItem.builder()
                     .order(order)
@@ -125,6 +128,7 @@ public class OrderService {
                     .productName(product.getName())
                     .quantity(itemReq.quantity())
                     .unitPrice(unitPrice)
+                    .discountPercent(discount)
                     .subtotal(subtotal)
                     .build();
             order.getItems().add(item);
@@ -144,6 +148,67 @@ public class OrderService {
         stockMovementRepository.saveAll(movements);
 
         return orderMapper.toResponse(order);
+    }
+
+    @Transactional
+    public OrderResponse duplicate(UUID id) {
+        Order original = findOrThrow(id);
+
+        String orderNumber = generateOrderNumber();
+
+        Order copy = Order.builder()
+                .orderNumber(orderNumber)
+                .customer(original.getCustomer())
+                .customerName(original.getCustomerName())
+                .customerPhone(original.getCustomerPhone())
+                .status(OrderStatus.NOVO)
+                .notes(original.getNotes())
+                .totalAmount(BigDecimal.ZERO)
+                .build();
+        copy = orderRepository.save(copy);
+
+        CustomerType customerType = (original.getCustomer() != null
+                && original.getCustomer().getCustomerType() != null)
+                ? original.getCustomer().getCustomerType()
+                : CustomerType.C;
+
+        BigDecimal total = BigDecimal.ZERO;
+        List<StockMovement> movements = new ArrayList<>();
+
+        for (OrderItem origItem : original.getItems()) {
+            Product product = origItem.getProduct();
+            BigDecimal unitPrice = resolvePrice(product, customerType);
+            BigDecimal discount = origItem.getDiscountPercent() != null
+                    ? origItem.getDiscountPercent() : BigDecimal.ZERO;
+            BigDecimal finalPrice = applyDiscount(unitPrice, discount);
+            BigDecimal subtotal = finalPrice.multiply(BigDecimal.valueOf(origItem.getQuantity()));
+
+            OrderItem item = OrderItem.builder()
+                    .order(copy)
+                    .product(product)
+                    .productName(product.getName())
+                    .quantity(origItem.getQuantity())
+                    .unitPrice(unitPrice)
+                    .discountPercent(discount)
+                    .subtotal(subtotal)
+                    .build();
+            copy.getItems().add(item);
+            total = total.add(subtotal);
+
+            movements.add(StockMovement.builder()
+                    .product(product)
+                    .order(copy)
+                    .type(StockMovementType.SAIDA)
+                    .quantity(origItem.getQuantity())
+                    .notes("Duplicado de " + original.getOrderNumber())
+                    .build());
+        }
+
+        copy.setTotalAmount(total);
+        copy = orderRepository.save(copy);
+        stockMovementRepository.saveAll(movements);
+
+        return orderMapper.toResponse(copy);
     }
 
     @Transactional
@@ -178,6 +243,21 @@ public class OrderService {
         orderRepository.save(order);
     }
 
+    private BigDecimal resolvePrice(Product product, CustomerType type) {
+        return switch (type) {
+            case A -> product.getPriceA();
+            case B -> product.getPriceB();
+            default -> product.getPriceC();
+        };
+    }
+
+    private BigDecimal applyDiscount(BigDecimal price, BigDecimal discountPercent) {
+        if (discountPercent == null || discountPercent.compareTo(BigDecimal.ZERO) == 0) return price;
+        BigDecimal factor = BigDecimal.ONE.subtract(
+                discountPercent.divide(new BigDecimal("100"), 10, RoundingMode.HALF_UP));
+        return price.multiply(factor).setScale(2, RoundingMode.HALF_UP);
+    }
+
     private void validateStatusTransition(OrderStatus current, OrderStatus next) {
         if (next == OrderStatus.CANCELADO) {
             if (current == OrderStatus.CONCLUIDO || current == OrderStatus.CANCELADO) {
@@ -210,7 +290,7 @@ public class OrderService {
         return (value == null || value.isBlank()) ? null : value.trim();
     }
 
-    private Specification<Order> buildSpec(OrderStatus status, String search) {
+    private Specification<Order> buildSpec(OrderStatus status, String search, UUID customerId) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(cb.isTrue(root.get("active")));
@@ -224,6 +304,9 @@ public class OrderService {
                         cb.like(cb.lower(root.get("orderNumber")), pattern),
                         cb.like(cb.lower(root.get("customerName")), pattern)
                 ));
+            }
+            if (customerId != null) {
+                predicates.add(cb.equal(root.get("customer").get("id"), customerId));
             }
             return cb.and(predicates.toArray(new Predicate[0]));
         };

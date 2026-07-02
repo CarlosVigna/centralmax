@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Table } from '../../components/ui/Table';
 import { Button } from '../../components/ui/Button';
@@ -9,6 +9,7 @@ import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import {
   deleteOrder,
+  duplicateOrder,
   listOrders,
   updateOrderStatus,
 } from '../../services/orderService';
@@ -38,8 +39,30 @@ function formatCurrency(value: number) {
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
+function buildWhatsAppUrl(phone: string, order: OrderResponse): string {
+  const items = order.items
+    .map((i) => `• ${i.productName} x${i.quantity} — ${formatCurrency(i.subtotal)}`)
+    .join('\n');
+  const msg =
+    `Olá ${order.customerDisplayName}! 😊\n` +
+    `Seu pedido *#${order.orderNumber}* está com status: *${order.statusLabel}*.\n\n` +
+    `📦 Itens:\n${items}\n\n` +
+    `*Total: ${formatCurrency(order.totalAmount)}*\n\n` +
+    `Qualquer dúvida estamos à disposição!`;
+  const clean = phone.replace(/\D/g, '');
+  const br = clean.startsWith('55') ? clean : `55${clean}`;
+  return `https://api.whatsapp.com/send?phone=${br}&text=${encodeURIComponent(msg)}`;
+}
+
+function PaymentBadge({ status }: { status: string }) {
+  if (status === 'PAGO') return <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-700">Pago</span>;
+  if (status === 'PENDENTE') return <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700">Pendente</span>;
+  return <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-medium text-neutral-500">Sem reg.</span>;
+}
+
 export function OrdersPage() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<OrderStatus | ''>('');
   const [confirmCancel, setConfirmCancel] = useState<OrderResponse | null>(null);
@@ -73,6 +96,11 @@ export function OrdersPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['orders'] }),
   });
 
+  const duplicateMutation = useMutation({
+    mutationFn: (id: string) => duplicateOrder(id),
+    onSuccess: (newOrder) => navigate(`/admin/pedidos/${newOrder.id}`),
+  });
+
   const orders = data?.content ?? [];
 
   const columns = [
@@ -100,6 +128,10 @@ export function OrdersPage() {
       ),
     },
     {
+      header: 'Pgto',
+      render: (row: OrderResponse) => <PaymentBadge status={row.paymentStatus} />,
+    },
+    {
       header: 'Total',
       render: (row: OrderResponse) => (
         <span className="font-medium text-neutral-900">
@@ -117,15 +149,21 @@ export function OrdersPage() {
       header: 'Ações',
       render: (row: OrderResponse) => {
         const next = nextStatus(row.status);
-        const canCancel =
-          row.status !== 'CONCLUIDO' && row.status !== 'CANCELADO';
-        const canDelete =
-          row.status === 'NOVO' || row.status === 'CANCELADO';
+        const canCancel = row.status !== 'CONCLUIDO' && row.status !== 'CANCELADO';
+        const canDelete = row.status === 'NOVO' || row.status === 'CANCELADO';
+        const hasPhone = Boolean(row.customerDisplayPhone);
         return (
           <div className="flex flex-wrap gap-1.5">
             <Link to={`/admin/pedidos/${row.id}`}>
               <Button size="sm" variant="ghost">Ver</Button>
             </Link>
+            {hasPhone ? (
+              <a href={buildWhatsAppUrl(row.customerDisplayPhone!, row)} target="_blank" rel="noreferrer">
+                <Button size="sm" variant="ghost">💬</Button>
+              </a>
+            ) : (
+              <Button size="sm" variant="ghost" disabled title="Sem telefone">💬</Button>
+            )}
             {next && (
               <Button
                 size="sm"
@@ -136,12 +174,16 @@ export function OrdersPage() {
                 {STATUS_LABELS[next]}
               </Button>
             )}
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={duplicateMutation.isPending}
+              onClick={() => duplicateMutation.mutate(row.id)}
+            >
+              Duplicar
+            </Button>
             {canCancel && (
-              <Button
-                size="sm"
-                variant="danger"
-                onClick={() => setConfirmCancel(row)}
-              >
+              <Button size="sm" variant="danger" onClick={() => setConfirmCancel(row)}>
                 Cancelar
               </Button>
             )}
@@ -164,7 +206,12 @@ export function OrdersPage() {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-neutral-900">Pedidos</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-neutral-900">Pedidos</h1>
+          <Link to="/admin/expedicao" className="text-xs text-primary hover:underline">
+            Ver board de expedição →
+          </Link>
+        </div>
         <Link to="/admin/pedidos/novo">
           <Button>Novo pedido</Button>
         </Link>
@@ -202,11 +249,7 @@ export function OrdersPage() {
       ) : (
         <>
           <div className="overflow-hidden rounded-lg border border-neutral-300 bg-white">
-            <Table
-              columns={columns}
-              data={orders}
-              emptyMessage="Nenhum pedido encontrado."
-            />
+            <Table columns={columns} data={orders} emptyMessage="Nenhum pedido encontrado." />
           </div>
           {data && data.totalElements > 0 && (
             <p className="mt-3 text-xs text-neutral-600">

@@ -1,6 +1,7 @@
 package br.com.centralmax.maxhub.order;
 
 import br.com.centralmax.maxhub.customer.Customer;
+import br.com.centralmax.maxhub.financial.FinancialEntry;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -72,6 +73,10 @@ public class Order {
     @OrderBy("createdAt ASC")
     @Builder.Default
     private List<OrderItem> items = new ArrayList<>();
+
+    @OneToMany(mappedBy = "order", fetch = FetchType.LAZY)
+    @Builder.Default
+    private List<FinancialEntry> financialEntries = new ArrayList<>();
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

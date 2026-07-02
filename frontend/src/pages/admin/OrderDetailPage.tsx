@@ -5,7 +5,7 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Table } from '../../components/ui/Table';
-import { getOrder, updateOrderStatus } from '../../services/orderService';
+import { getOrder, updateOrderStatus, duplicateOrder } from '../../services/orderService';
 import {
   nextStatus,
   STATUS_BADGE_VARIANT,
@@ -19,6 +19,27 @@ function formatDate(iso: string) {
 
 function formatCurrency(value: number) {
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function buildWhatsAppUrl(phone: string, order: {
+  orderNumber: string;
+  customerDisplayName: string;
+  statusLabel: string;
+  items: OrderItemResponse[];
+  totalAmount: number;
+}): string {
+  const items = order.items
+    .map((i) => `• ${i.productName} x${i.quantity} — ${formatCurrency(i.subtotal)}`)
+    .join('\n');
+  const msg =
+    `Olá ${order.customerDisplayName}! 😊\n` +
+    `Seu pedido *#${order.orderNumber}* está com status: *${order.statusLabel}*.\n\n` +
+    `📦 Itens:\n${items}\n\n` +
+    `*Total: ${formatCurrency(order.totalAmount)}*\n\n` +
+    `Qualquer dúvida estamos à disposição!`;
+  const clean = phone.replace(/\D/g, '');
+  const br = clean.startsWith('55') ? clean : `55${clean}`;
+  return `https://api.whatsapp.com/send?phone=${br}&text=${encodeURIComponent(msg)}`;
 }
 
 export function OrderDetailPage() {
@@ -49,6 +70,11 @@ export function OrderDetailPage() {
     },
   });
 
+  const duplicateMutation = useMutation({
+    mutationFn: () => duplicateOrder(id!),
+    onSuccess: (newOrder) => navigate(`/admin/pedidos/${newOrder.id}`),
+  });
+
   const itemColumns = [
     {
       header: 'Produto',
@@ -67,6 +93,15 @@ export function OrderDetailPage() {
       render: (row: OrderItemResponse) => (
         <span className="text-neutral-700">{formatCurrency(row.unitPrice)}</span>
       ),
+    },
+    {
+      header: 'Desconto',
+      render: (row: OrderItemResponse) =>
+        row.discountPercent > 0 ? (
+          <span className="text-green-600 text-sm">-{row.discountPercent}%</span>
+        ) : (
+          <span className="text-neutral-400">—</span>
+        ),
     },
     {
       header: 'Subtotal',
@@ -93,10 +128,11 @@ export function OrderDetailPage() {
 
   const next = nextStatus(order.status);
   const canCancel = order.status !== 'CONCLUIDO' && order.status !== 'CANCELADO';
+  const hasPhone = Boolean(order.customerDisplayPhone);
 
   return (
     <div>
-      <div className="mb-6 flex items-center gap-4">
+      <div className="mb-6 flex flex-wrap items-center gap-3">
         <Link to="/admin/pedidos" className="text-sm text-primary hover:underline">
           ← Pedidos
         </Link>
@@ -104,6 +140,32 @@ export function OrderDetailPage() {
           Pedido {order.orderNumber}
         </h1>
         <Badge variant={STATUS_BADGE_VARIANT[order.status]}>{order.statusLabel}</Badge>
+
+        <div className="ml-auto flex flex-wrap gap-2">
+          {hasPhone ? (
+            <a
+              href={buildWhatsAppUrl(order.customerDisplayPhone!, order)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Button variant="outline" size="sm">
+                💬 WhatsApp
+              </Button>
+            </a>
+          ) : (
+            <Button variant="outline" size="sm" disabled title="Cliente sem telefone cadastrado">
+              💬 WhatsApp
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={duplicateMutation.isPending}
+            onClick={() => duplicateMutation.mutate()}
+          >
+            Duplicar pedido
+          </Button>
+        </div>
       </div>
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -114,6 +176,14 @@ export function OrderDetailPage() {
           <p className="font-medium text-neutral-900">{order.customerDisplayName}</p>
           {order.customerDisplayPhone && (
             <p className="mt-1 text-sm text-neutral-600">{order.customerDisplayPhone}</p>
+          )}
+          {order.customerId && (
+            <Link
+              to={`/admin/clientes/${order.customerId}`}
+              className="mt-2 block text-xs text-primary hover:underline"
+            >
+              Ver cadastro do cliente →
+            </Link>
           )}
         </Card>
 
@@ -129,6 +199,12 @@ export function OrderDetailPage() {
             <div className="flex justify-between">
               <dt className="text-neutral-600">Última atualização</dt>
               <dd className="text-neutral-900">{formatDate(order.updatedAt)}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-neutral-600">Pagamento</dt>
+              <dd>
+                <PaymentBadge status={order.paymentStatus} />
+              </dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-neutral-600">Total</dt>
@@ -153,11 +229,7 @@ export function OrderDetailPage() {
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-500">
           Itens do pedido
         </h2>
-        <Table
-          columns={itemColumns}
-          data={order.items}
-          emptyMessage="Sem itens."
-        />
+        <Table columns={itemColumns} data={order.items} emptyMessage="Sem itens." />
         <div className="mt-4 flex justify-end border-t border-neutral-200 pt-4">
           <span className="text-lg font-bold text-neutral-900">
             Total: {formatCurrency(order.totalAmount)}
@@ -165,7 +237,6 @@ export function OrderDetailPage() {
         </div>
       </Card>
 
-      {/* Ações de status */}
       {(next || canCancel) && (
         <div className="flex flex-wrap gap-3">
           {next && (
@@ -197,4 +268,14 @@ export function OrderDetailPage() {
       )}
     </div>
   );
+}
+
+function PaymentBadge({ status }: { status: string }) {
+  if (status === 'PAGO') {
+    return <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">Pago</span>;
+  }
+  if (status === 'PENDENTE') {
+    return <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">Pendente</span>;
+  }
+  return <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-500">Sem registro</span>;
 }

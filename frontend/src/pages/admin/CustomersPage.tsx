@@ -8,8 +8,8 @@ import { Badge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { deleteCustomer, listCustomers } from '../../services/customerService';
-import { STATUS_OPTIONS } from '../../types/customer';
-import type { Customer, CustomerStatus } from '../../types/customer';
+import { STATUS_OPTIONS, ORIGIN_OPTIONS } from '../../types/customer';
+import type { Customer, CustomerOrigin, CustomerStatus } from '../../types/customer';
 
 function statusVariant(status: CustomerStatus): 'neutral' | 'success' | 'danger' {
   if (status === 'ATIVO') return 'success';
@@ -21,16 +21,45 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('pt-BR');
 }
 
+function exportCSV(customers: Customer[]) {
+  const headers = ['Nome', 'Email', 'Telefone', 'Tipo', 'Status', 'Origem', 'Cadastrado em'];
+  const rows = customers.map((c) => [
+    c.name,
+    c.email ?? '',
+    c.phone ?? '',
+    c.customerType,
+    c.statusLabel,
+    c.originLabel,
+    formatDate(c.createdAt),
+  ]);
+  const csv = [headers, ...rows]
+    .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    .join('\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const month = new Date().toISOString().slice(0, 7).replace('-', '');
+  a.href = url;
+  a.download = `centralmax-clientes-${month}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export function CustomersPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<CustomerStatus | ''>('');
+  const [originFilter, setOriginFilter] = useState<CustomerOrigin | ''>('');
   const [confirmDelete, setConfirmDelete] = useState<Customer | null>(null);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['customers', { search, status: statusFilter || undefined }],
+    queryKey: ['customers', { search, status: statusFilter || undefined, origin: originFilter || undefined }],
     queryFn: () =>
-      listCustomers({ search: search || undefined, status: statusFilter || undefined }),
+      listCustomers({
+        search: search || undefined,
+        status: statusFilter || undefined,
+        origin: originFilter || undefined,
+      }),
   });
 
   const deleteMutation = useMutation({
@@ -47,7 +76,9 @@ export function CustomersPage() {
     {
       header: 'Nome',
       render: (row: Customer) => (
-        <span className="font-medium text-neutral-900">{row.name}</span>
+        <Link to={`/admin/clientes/${row.id}`} className="font-medium text-neutral-900 hover:text-primary hover:underline">
+          {row.name}
+        </Link>
       ),
     },
     {
@@ -57,7 +88,7 @@ export function CustomersPage() {
       ),
     },
     {
-      header: 'Tipo',
+      header: 'Tipo/Status',
       render: (row: Customer) => (
         <Badge variant={statusVariant(row.status)}>{row.statusLabel}</Badge>
       ),
@@ -78,6 +109,9 @@ export function CustomersPage() {
       header: 'Ações',
       render: (row: Customer) => (
         <div className="flex gap-2">
+          <Link to={`/admin/clientes/${row.id}`}>
+            <Button size="sm" variant="ghost">Ver</Button>
+          </Link>
           <Link to={`/admin/clientes/${row.id}/editar`}>
             <Button size="sm" variant="outline">Editar</Button>
           </Link>
@@ -93,9 +127,16 @@ export function CustomersPage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-neutral-900">Clientes</h1>
-        <Link to="/admin/clientes/novo">
-          <Button>Novo cliente</Button>
-        </Link>
+        <div className="flex gap-2">
+          {customers.length > 0 && (
+            <Button variant="outline" onClick={() => exportCSV(customers)}>
+              Exportar CSV
+            </Button>
+          )}
+          <Link to="/admin/clientes/novo">
+            <Button>Novo cliente</Button>
+          </Link>
+        </div>
       </div>
 
       {/* Filtros */}
@@ -111,8 +152,18 @@ export function CustomersPage() {
           onChange={(e) => setStatusFilter(e.target.value as CustomerStatus | '')}
           className="rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-light"
         >
-          <option value="">Todos os tipos</option>
+          <option value="">Todos os status</option>
           {STATUS_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+        <select
+          value={originFilter}
+          onChange={(e) => setOriginFilter(e.target.value as CustomerOrigin | '')}
+          className="rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-light"
+        >
+          <option value="">Todas as origens</option>
+          {ORIGIN_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
@@ -129,7 +180,7 @@ export function CustomersPage() {
               emptyMessage="Nenhum cliente encontrado."
             />
           </div>
-          {data && data.totalPages > 1 && (
+          {data && data.totalElements > 0 && (
             <p className="mt-3 text-xs text-neutral-600">
               {data.totalElements} cliente(s) no total
             </p>

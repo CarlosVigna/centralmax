@@ -1,5 +1,7 @@
 export type CustomerStatus = 'PROSPECT' | 'ATIVO' | 'INATIVO';
 
+export type CustomerType = 'A' | 'B' | 'C';
+
 export type CustomerOrigin =
   | 'LANDING'
   | 'WHATSAPP'
@@ -20,6 +22,7 @@ export interface Customer {
   document: string | null;
   status: CustomerStatus;
   statusLabel: string;
+  customerType: CustomerType;
   origin: CustomerOrigin;
   originLabel: string;
   notes: string | null;

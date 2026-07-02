@@ -133,6 +133,29 @@ export function ReportsPage() {
   );
 }
 
+function exportSalesCSV(data: Awaited<ReturnType<typeof getSalesReport>>) {
+  const rows: string[][] = [];
+  rows.push(['# Receita por dia']);
+  rows.push(['Data', 'Receita (R$)']);
+  for (const d of data.revenueByDay) rows.push([d.date, String(Number(d.revenue).toFixed(2))]);
+  rows.push([]);
+  rows.push(['# Top produtos']);
+  rows.push(['Produto', 'Qtd', 'Receita (R$)']);
+  for (const p of data.topProducts)
+    rows.push([p.productName, String(p.quantity), String(Number(p.revenue).toFixed(2))]);
+  const csv = rows
+    .map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    .join('\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const month = new Date().toISOString().slice(0, 7).replace('-', '');
+  a.href = url;
+  a.download = `centralmax-vendas-${month}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 function SalesTab({
   data,
   isLoading,
@@ -162,6 +185,16 @@ function SalesTab({
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-end">
+        <button
+          onClick={() => exportSalesCSV(data)}
+          className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium
+            text-neutral-700 hover:bg-neutral-50 transition"
+        >
+          Exportar CSV
+        </button>
+      </div>
+
       {/* Summary cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card>

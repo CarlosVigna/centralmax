@@ -51,6 +51,10 @@ public class OrderItem {
     @Column(name = "unit_price", nullable = false, precision = 12, scale = 2)
     private BigDecimal unitPrice;
 
+    @Column(name = "discount_percent", nullable = false, precision = 5, scale = 2)
+    @Builder.Default
+    private BigDecimal discountPercent = BigDecimal.ZERO;
+
     @Column(precision = 12, scale = 2)
     private BigDecimal subtotal;
 

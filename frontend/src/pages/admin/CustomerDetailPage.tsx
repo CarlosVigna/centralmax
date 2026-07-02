@@ -7,10 +7,16 @@ import {
   createInteraction,
   deleteInteraction,
 } from '../../services/interactionService';
+import { listOrders } from '../../services/orderService';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
+import { Badge } from '../../components/ui/Badge';
 import { INTERACTION_TYPE_OPTIONS, INTERACTION_TYPE_LABELS } from '../../types/interaction';
+import { STATUS_BADGE_VARIANT, STATUS_LABELS } from '../../types/order';
 import type { InteractionRequest, InteractionType } from '../../types/interaction';
+import type { OrderResponse } from '../../types/order';
+
+type Tab = 'resumo' | 'pedidos' | 'historico';
 
 const STATUS_COLORS: Record<string, string> = {
   PROSPECT: 'bg-blue-100 text-blue-800',
@@ -29,15 +35,33 @@ function formatDate(iso: string | null | undefined) {
   });
 }
 
+function formatDateShort(iso: string) {
+  return new Date(iso).toLocaleDateString('pt-BR');
+}
+
+function formatCurrency(v: number) {
+  return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function daysSince(iso: string): number {
+  return Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+}
+
 export function CustomerDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const [activeTab, setActiveTab] = useState<'resumo' | 'historico'>('resumo');
+  const [activeTab, setActiveTab] = useState<Tab>('resumo');
   const queryClient = useQueryClient();
 
   const { data: customer, isLoading: loadingCustomer } = useQuery({
     queryKey: ['customer', id],
     queryFn: () => getCustomer(id!),
     enabled: !!id,
+  });
+
+  const { data: ordersPage, isLoading: loadingOrders } = useQuery({
+    queryKey: ['customer-orders', id],
+    queryFn: () => listOrders({ customerId: id!, size: 50 }),
+    enabled: !!id && activeTab === 'pedidos',
   });
 
   const { data: interactions = [], isLoading: loadingInteractions } = useQuery({
@@ -82,6 +106,10 @@ export function CustomerDetailPage() {
     return <p className="text-sm text-danger">Cliente não encontrado.</p>;
   }
 
+  const orders: OrderResponse[] = ordersPage?.content ?? [];
+  const totalGasto = orders.reduce((s, o) => s + o.totalAmount, 0);
+  const lastOrder = orders[0];
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
@@ -91,14 +119,19 @@ export function CustomerDetailPage() {
           </Link>
           <h1 className="text-2xl font-bold text-neutral-900">{customer.name}</h1>
         </div>
-        <Link to={`/admin/clientes/${id}/editar`}>
-          <Button variant="outline" size="sm">Editar</Button>
-        </Link>
+        <div className="flex gap-2">
+          <Link to={`/admin/pedidos/novo?customerId=${id}`}>
+            <Button size="sm">Novo Pedido</Button>
+          </Link>
+          <Link to={`/admin/clientes/${id}/editar`}>
+            <Button variant="outline" size="sm">Editar</Button>
+          </Link>
+        </div>
       </div>
 
       {/* Tabs */}
       <div className="mb-6 flex gap-1 border-b border-neutral-200">
-        {(['resumo', 'historico'] as const).map((tab) => (
+        {(['resumo', 'pedidos', 'historico'] as Tab[]).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -107,7 +140,7 @@ export function CustomerDetailPage() {
                 ? 'border-primary text-primary'
                 : 'border-transparent text-neutral-500 hover:text-neutral-900'}`}
           >
-            {tab === 'resumo' ? 'Resumo' : 'Histórico'}
+            {tab === 'resumo' ? 'Resumo' : tab === 'pedidos' ? 'Pedidos' : 'Histórico'}
           </button>
         ))}
       </div>
@@ -124,6 +157,7 @@ export function CustomerDetailPage() {
                   {customer.statusLabel}
                 </span>
               </Row>
+              <Row label="Tipo">{customer.customerType}</Row>
               <Row label="Origem">{customer.originLabel}</Row>
               <Row label="Telefone">{customer.phone ?? '—'}</Row>
               <Row label="E-mail">{customer.email ?? '—'}</Row>
@@ -141,6 +175,82 @@ export function CustomerDetailPage() {
                 {customer.notes}
               </p>
             </Card>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'pedidos' && (
+        <div className="space-y-4">
+          {/* Summary card */}
+          {orders.length > 0 && (
+            <Card>
+              <div className="flex flex-wrap gap-6 text-sm">
+                <div>
+                  <p className="text-xs font-medium text-neutral-500">Pedidos</p>
+                  <p className="text-2xl font-bold text-neutral-900">{orders.length}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-neutral-500">Total gasto</p>
+                  <p className="text-2xl font-bold text-green-600">{formatCurrency(totalGasto)}</p>
+                </div>
+                {lastOrder && (
+                  <div>
+                    <p className="text-xs font-medium text-neutral-500">Última compra</p>
+                    <p className="text-lg font-semibold text-neutral-700">
+                      há {daysSince(lastOrder.createdAt)} dias
+                    </p>
+                  </div>
+                )}
+              </div>
+            </Card>
+          )}
+
+          {loadingOrders ? (
+            <p className="text-sm text-neutral-600">Carregando pedidos...</p>
+          ) : orders.length === 0 ? (
+            <p className="text-sm text-neutral-400">Nenhum pedido encontrado para este cliente.</p>
+          ) : (
+            <div className="overflow-hidden rounded-lg border border-neutral-200 bg-white">
+              <table className="w-full text-sm">
+                <thead className="border-b border-neutral-200 bg-neutral-50 text-xs font-medium text-neutral-500">
+                  <tr>
+                    <th className="px-4 py-3 text-left">Nº Pedido</th>
+                    <th className="px-4 py-3 text-left">Data</th>
+                    <th className="px-4 py-3 text-right">Itens</th>
+                    <th className="px-4 py-3 text-right">Total</th>
+                    <th className="px-4 py-3 text-left">Status</th>
+                    <th className="px-4 py-3 text-right">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-100">
+                  {orders.map((order) => (
+                    <tr key={order.id} className="hover:bg-neutral-50">
+                      <td className="px-4 py-3 font-mono font-semibold text-primary">
+                        {order.orderNumber}
+                      </td>
+                      <td className="px-4 py-3 text-neutral-600">{formatDateShort(order.createdAt)}</td>
+                      <td className="px-4 py-3 text-right text-neutral-600">{order.items.length}</td>
+                      <td className="px-4 py-3 text-right font-medium text-neutral-900">
+                        {formatCurrency(order.totalAmount)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge variant={STATUS_BADGE_VARIANT[order.status]}>
+                          {STATUS_LABELS[order.status]}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <Link
+                          to={`/admin/pedidos/${order.id}`}
+                          className="text-xs text-primary hover:underline"
+                        >
+                          Ver pedido →
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       )}

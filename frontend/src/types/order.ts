@@ -7,12 +7,16 @@ export type OrderStatus =
   | 'CONCLUIDO'
   | 'CANCELADO';
 
+export type PaymentStatus = 'PAGO' | 'PENDENTE' | 'SEM_REGISTRO';
+
 export interface OrderItemResponse {
   id: string;
   productId: string;
   productName: string;
   quantity: number;
   unitPrice: number;
+  discountPercent: number;
+  finalUnitPrice: number;
   subtotal: number;
 }
 
@@ -24,6 +28,7 @@ export interface OrderResponse {
   customerDisplayPhone: string | null;
   status: OrderStatus;
   statusLabel: string;
+  paymentStatus: PaymentStatus;
   notes: string | null;
   totalAmount: number;
   items: OrderItemResponse[];
@@ -34,6 +39,7 @@ export interface OrderResponse {
 export interface OrderItemRequest {
   productId: string;
   quantity: number;
+  discountPercent?: number;
 }
 
 export interface OrderRequest {

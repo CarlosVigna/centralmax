@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect } from 'react';
 import { Link, Outlet } from 'react-router-dom';
 import { AdminSidebar } from './AdminSidebar';
+import { GlobalSearch } from '../ui/GlobalSearch';
 import { useAuth } from '../../hooks/useAuth';
 import { useNotifications } from '../../hooks/useNotifications';
 import { Button } from '../ui/Button';
@@ -51,6 +52,17 @@ export function AdminLayout() {
           <span className="text-sm text-neutral-600">{user?.name}</span>
 
           <div className="flex items-center gap-3">
+            {/* Global search trigger */}
+            <button
+              onClick={() => window.dispatchEvent(new Event('globalSearch:open'))}
+              className="flex items-center gap-1.5 rounded-md border border-neutral-200 bg-neutral-50
+                px-3 py-1.5 text-xs text-neutral-500 hover:bg-neutral-100 transition"
+              title="Busca global (Ctrl+K)"
+            >
+              🔍 <span className="hidden sm:inline">Buscar</span>
+              <kbd className="rounded border border-neutral-200 px-1 text-[10px]">Ctrl+K</kbd>
+            </button>
+
             {/* Notification bell */}
             <div ref={bellRef} className="relative">
               <button
@@ -149,6 +161,7 @@ export function AdminLayout() {
           <Outlet />
         </main>
       </div>
+      <GlobalSearch />
     </div>
   );
 }

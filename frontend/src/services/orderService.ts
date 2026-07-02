@@ -5,6 +5,7 @@ import type { PageResponse } from './productService';
 export interface OrderFilters {
   status?: OrderStatus;
   search?: string;
+  customerId?: string;
   page?: number;
   size?: number;
 }
@@ -31,4 +32,9 @@ export async function updateOrderStatus(id: string, status: OrderStatus): Promis
 
 export async function deleteOrder(id: string): Promise<void> {
   await api.delete(`/orders/${id}`);
+}
+
+export async function duplicateOrder(id: string): Promise<OrderResponse> {
+  const { data } = await api.post<OrderResponse>(`/orders/${id}/duplicate`);
+  return data;
 }
