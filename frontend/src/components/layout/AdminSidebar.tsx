@@ -21,6 +21,9 @@ export function AdminSidebar() {
 
   return (
     <aside className="w-60 border-r border-neutral-300 bg-white p-4">
+      <div className="mb-5 flex items-center px-1">
+        <img src="/images/logo-horizontal.png" alt="CentralMax Embalagens" className="h-8 w-auto" />
+      </div>
       <nav className="flex flex-col gap-2 text-sm font-medium text-neutral-900">
         {LINKS.map((link) => (
           <NavLink
