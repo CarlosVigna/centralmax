@@ -220,7 +220,7 @@ function SalesTab({
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="dateLabel" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
-              <Tooltip formatter={(v: number) => fmtCurrency(v)} labelFormatter={(l) => `Dia: ${l}`} />
+              <Tooltip formatter={(v) => fmtCurrency(Number(v))} labelFormatter={(l) => `Dia: ${l}`} />
               <Bar dataKey="revenue" fill="#0f1f3d" radius={[4, 4, 0, 0]} name="Receita" />
             </BarChart>
           </ResponsiveContainer>
