@@ -30,9 +30,6 @@ export function LoginPage() {
 
   return (
     <section className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-4">
-      <div className="mb-8 flex justify-center">
-        <img src="/images/logo-horizontal.png" alt="CentralMax Embalagens" className="h-12 w-auto" />
-      </div>
       <h1 className="mb-6 text-2xl font-bold text-neutral-900">Entrar no MaxHub</h1>
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
         <Input label="E-mail" type="email" {...register('email', { required: true })} />

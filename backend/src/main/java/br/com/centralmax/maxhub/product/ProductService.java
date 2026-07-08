@@ -77,6 +77,9 @@ public class ProductService {
                 .description(request.description())
                 .category(category)
                 .supplier(supplier)
+                .sku(request.sku())
+                .purchasePrice(request.purchasePrice())
+                .minQuantity(request.minQuantity() != null ? request.minQuantity() : 1)
                 .priceA(request.priceA())
                 .priceB(request.priceB())
                 .priceC(request.priceC())
@@ -97,6 +100,9 @@ public class ProductService {
         product.setDescription(request.description());
         product.setCategory(category);
         product.setSupplier(supplier);
+        product.setSku(request.sku());
+        product.setPurchasePrice(request.purchasePrice());
+        if (request.minQuantity() != null) product.setMinQuantity(request.minQuantity());
         product.setPriceA(request.priceA());
         product.setPriceB(request.priceB());
         product.setPriceC(request.priceC());
@@ -128,6 +134,8 @@ public class ProductService {
                 .description(original.getDescription())
                 .category(original.getCategory())
                 .supplier(original.getSupplier())
+                .purchasePrice(original.getPurchasePrice())
+                .minQuantity(original.getMinQuantity())
                 .priceA(original.getPriceA())
                 .priceB(original.getPriceB())
                 .priceC(original.getPriceC())

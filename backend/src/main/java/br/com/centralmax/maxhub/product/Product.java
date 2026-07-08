@@ -59,6 +59,16 @@ public class Product {
     @JoinColumn(name = "supplier_id")
     private Supplier supplier;
 
+    @Column(name = "sku", length = 50)
+    private String sku;
+
+    @Column(name = "purchase_price", precision = 15, scale = 2)
+    private BigDecimal purchasePrice;
+
+    @Column(name = "min_quantity")
+    @Builder.Default
+    private Integer minQuantity = 1;
+
     @Column(name = "price_a", nullable = false, precision = 12, scale = 2)
     private BigDecimal priceA;
 

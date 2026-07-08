@@ -5,7 +5,7 @@ export function Footer() {
     <footer className="bg-primary py-10">
       <div className="mx-auto max-w-6xl px-4">
         <div className="flex flex-col items-center gap-3 text-center">
-          <img src="/images/logo-horizontal.png" alt="CentralMax Embalagens" className="h-8 w-auto" />
+          <p className="text-xl font-bold text-white">CentralMax Embalagens</p>
           <p className="text-sm text-white/70">
             Soluções em embalagens para o seu negócio ir mais longe
           </p>

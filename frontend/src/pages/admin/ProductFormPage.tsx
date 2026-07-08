@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm, useWatch } from 'react-hook-form';
@@ -16,14 +16,31 @@ import { createProduct, getAdminProduct, updateProduct } from '../../services/pr
 import type { ProductRequest } from '../../types/product';
 
 interface ProductFormValues {
+  sku: string;
   name: string;
   description: string;
   categoryId: string;
   supplierId: string;
+  purchasePrice: string;
+  minQuantity: string;
   priceA: string;
   priceB: string;
   priceC: string;
   mainImageUrl: string;
+}
+
+function calcPrice(purchasePrice: string, margin: string): string {
+  const pc = parseFloat(purchasePrice);
+  const m = parseFloat(margin);
+  if (!pc || pc <= 0 || isNaN(m)) return '';
+  return (pc * (1 + m / 100)).toFixed(2);
+}
+
+function calcMargin(purchasePrice: string, price: string): string {
+  const pc = parseFloat(purchasePrice);
+  const p = parseFloat(price);
+  if (!pc || pc <= 0 || !p || p <= 0) return '';
+  return (((p / pc) - 1) * 100).toFixed(1);
 }
 
 export function ProductFormPage() {
@@ -33,6 +50,11 @@ export function ProductFormPage() {
   const queryClient = useQueryClient();
 
   const productQueryKey = ['admin-product', id];
+
+  // Local state for margins (derived, not stored in DB)
+  const [marginA, setMarginA] = useState('5.0');
+  const [marginB, setMarginB] = useState('10.0');
+  const [marginC, setMarginC] = useState('15.0');
 
   const { data: categories = [] } = useQuery({
     queryKey: ['categories'],
@@ -52,12 +74,15 @@ export function ProductFormPage() {
     enabled: isEditing,
   });
 
-  const { register, handleSubmit, reset, control, formState } = useForm<ProductFormValues>({
+  const { register, handleSubmit, reset, control, setValue, formState } = useForm<ProductFormValues>({
     defaultValues: {
+      sku: '',
       name: '',
       description: '',
       categoryId: '',
       supplierId: '',
+      purchasePrice: '',
+      minQuantity: '1',
       priceA: '',
       priceB: '',
       priceC: '',
@@ -65,7 +90,7 @@ export function ProductFormPage() {
     },
   });
 
-  // Watch fields for live preview and price validation
+  // Watch fields for preview and calculations
   const watchedName = useWatch({ control, name: 'name' });
   const watchedDesc = useWatch({ control, name: 'description' });
   const watchedPriceA = useWatch({ control, name: 'priceA' });
@@ -73,19 +98,30 @@ export function ProductFormPage() {
   const watchedPriceC = useWatch({ control, name: 'priceC' });
   const watchedCategoryId = useWatch({ control, name: 'categoryId' });
   const watchedImageUrl = useWatch({ control, name: 'mainImageUrl' });
+  const watchedPurchasePrice = useWatch({ control, name: 'purchasePrice' });
 
   useEffect(() => {
     if (existing) {
       reset({
+        sku: existing.sku ?? '',
         name: existing.name,
         description: existing.description ?? '',
         categoryId: existing.categoryId,
         supplierId: existing.supplierId ?? '',
+        purchasePrice: existing.purchasePrice ? String(existing.purchasePrice) : '',
+        minQuantity: String(existing.minQuantity ?? 1),
         priceA: String(existing.priceA),
         priceB: String(existing.priceB),
         priceC: String(existing.priceC),
         mainImageUrl: existing.mainImageUrl ?? '',
       });
+      // Back-calculate margins from existing purchase price
+      if (existing.purchasePrice && existing.purchasePrice > 0) {
+        const pc = existing.purchasePrice;
+        setMarginA((((existing.priceA / pc) - 1) * 100).toFixed(1));
+        setMarginB((((existing.priceB / pc) - 1) * 100).toFixed(1));
+        setMarginC((((existing.priceC / pc) - 1) * 100).toFixed(1));
+      }
     }
   }, [existing, reset]);
 
@@ -96,7 +132,6 @@ export function ProductFormPage() {
       queryClient.invalidateQueries({ queryKey: ['admin-products'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
       if (!isEditing) {
-        // Redirect to edit page so photo/variation sections become available
         navigate(`/admin/produtos/${saved.id}/editar`);
       }
     },
@@ -108,6 +143,9 @@ export function ProductFormPage() {
       description: values.description.trim() || undefined,
       categoryId: values.categoryId,
       supplierId: values.supplierId || undefined,
+      sku: values.sku.trim() || undefined,
+      purchasePrice: values.purchasePrice ? parseFloat(values.purchasePrice) : undefined,
+      minQuantity: values.minQuantity ? parseInt(values.minQuantity) : undefined,
       priceA: parseFloat(values.priceA),
       priceB: parseFloat(values.priceB),
       priceC: parseFloat(values.priceC),
@@ -126,14 +164,18 @@ export function ProductFormPage() {
     ...suppliers.map((s) => ({ value: s.id, label: s.name })),
   ];
 
-  const previewCategory =
-    categories.find((c) => c.id === watchedCategoryId)?.name ?? '';
+  const previewCategory = categories.find((c) => c.id === watchedCategoryId)?.name ?? '';
+  const previewImage = (isEditing && existing?.photos?.[0]?.url) || watchedImageUrl || null;
 
-  // For preview image: prefer first uploaded photo, fall back to mainImageUrl field
-  const previewImage =
-    (isEditing && existing?.photos?.[0]?.url) ||
-    watchedImageUrl ||
-    null;
+  // Price order validation (computed at top level — no conditional hooks)
+  const priceANum = parseFloat(watchedPriceA) || 0;
+  const priceBNum = parseFloat(watchedPriceB) || 0;
+  const priceCNum = parseFloat(watchedPriceC) || 0;
+  const priceOrderErrors: string[] = [];
+  if (priceANum > 0 && priceBNum > 0 && priceBNum < priceANum)
+    priceOrderErrors.push('Preço B (intermediário) deve ser ≥ Preço A (atacado)');
+  if (priceBNum > 0 && priceCNum > 0 && priceCNum < priceBNum)
+    priceOrderErrors.push('Preço C (varejo) deve ser ≥ Preço B (intermediário)');
 
   if (isEditing && loadingProduct) {
     return <p className="text-sm text-neutral-600">Carregando produto...</p>;
@@ -153,16 +195,27 @@ export function ProductFormPage() {
             Dados do produto
           </h2>
           <form id="product-form" onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
-            <Input
-              label="Nome *"
-              id="name"
-              {...register('name', {
-                required: 'Nome é obrigatório',
-                minLength: { value: 3, message: 'Mínimo 3 caracteres' },
-                maxLength: { value: 160, message: 'Máximo 160 caracteres' },
-              })}
-              error={formState.errors.name?.message}
-            />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Input
+                label="SKU (código)"
+                id="sku"
+                placeholder="Ex: 100638"
+                {...register('sku', {
+                  maxLength: { value: 50, message: 'Máximo 50 caracteres' },
+                })}
+                error={formState.errors.sku?.message}
+              />
+              <Input
+                label="Nome *"
+                id="name"
+                {...register('name', {
+                  required: 'Nome é obrigatório',
+                  minLength: { value: 3, message: 'Mínimo 3 caracteres' },
+                  maxLength: { value: 160, message: 'Máximo 160 caracteres' },
+                })}
+                error={formState.errors.name?.message}
+              />
+            </div>
 
             <div className="flex flex-col gap-1">
               <label htmlFor="description" className="text-sm font-medium text-neutral-900">
@@ -191,63 +244,6 @@ export function ProductFormPage() {
               {...register('supplierId')}
             />
 
-            <div className="grid grid-cols-3 gap-4">
-              <Input
-                label="Preço A (atacado) *"
-                id="priceA"
-                type="number"
-                step="0.01"
-                min="0.01"
-                {...register('priceA', {
-                  required: 'Preço A é obrigatório',
-                  min: { value: 0.01, message: 'Deve ser positivo' },
-                })}
-                error={formState.errors.priceA?.message}
-              />
-              <Input
-                label="Preço B (interm.) *"
-                id="priceB"
-                type="number"
-                step="0.01"
-                min="0.01"
-                {...register('priceB', {
-                  required: 'Preço B é obrigatório',
-                  min: { value: 0.01, message: 'Deve ser positivo' },
-                })}
-                error={formState.errors.priceB?.message}
-              />
-              <Input
-                label="Preço C (varejo) *"
-                id="priceC"
-                type="number"
-                step="0.01"
-                min="0.01"
-                {...register('priceC', {
-                  required: 'Preço C é obrigatório',
-                  min: { value: 0.01, message: 'Deve ser positivo' },
-                })}
-                error={formState.errors.priceC?.message}
-              />
-            </div>
-            {/* Real-time price order validation */}
-            {(() => {
-              const a = parseFloat(watchedPriceA);
-              const b = parseFloat(watchedPriceB);
-              const c = parseFloat(watchedPriceC);
-              const errs: string[] = [];
-              if (!isNaN(a) && !isNaN(b) && a > 0 && b > 0 && b < a)
-                errs.push('Preço B (intermediário) deve ser ≥ Preço A (atacado)');
-              if (!isNaN(b) && !isNaN(c) && b > 0 && c > 0 && c < b)
-                errs.push('Preço C (varejo) deve ser ≥ Preço B (intermediário)');
-              return errs.length > 0 ? (
-                <div className="space-y-1">
-                  {errs.map((err, i) => (
-                    <p key={i} className="text-xs text-amber-600">⚠ {err}</p>
-                  ))}
-                </div>
-              ) : null;
-            })()}
-
             <Input
               label="URL da imagem (legado)"
               id="mainImageUrl"
@@ -257,7 +253,7 @@ export function ProductFormPage() {
                 maxLength: { value: 500, message: 'Máximo 500 caracteres' },
               })}
               error={formState.errors.mainImageUrl?.message}
-              helperText="Opcional — preferira fazer upload de fotos abaixo"
+              helperText="Opcional — prefira fazer upload de fotos abaixo"
             />
 
             {saveMutation.isError && (
@@ -285,6 +281,184 @@ export function ProductFormPage() {
               </Button>
             </div>
           </form>
+        </Card>
+
+        {/* ── Precificação ── */}
+        <Card>
+          <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-neutral-500">
+            Precificação
+          </h2>
+          <p className="mb-4 text-xs text-neutral-400">
+            Digite o preço de compra e as margens para calcular os preços automaticamente,
+            ou insira os preços diretamente.
+          </p>
+
+          <div className="flex flex-col gap-4">
+            {/* Preço de Compra + Qtd Mínima */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Input
+                label="Preço de Compra (R$)"
+                id="purchasePrice"
+                type="number"
+                step="0.01"
+                min="0.01"
+                placeholder="0,00"
+                {...register('purchasePrice', {
+                  min: { value: 0.01, message: 'Deve ser positivo' },
+                  onChange: (e) => {
+                    const pc = e.target.value;
+                    const newA = calcPrice(pc, marginA);
+                    const newB = calcPrice(pc, marginB);
+                    const newC = calcPrice(pc, marginC);
+                    if (newA) setValue('priceA', newA);
+                    if (newB) setValue('priceB', newB);
+                    if (newC) setValue('priceC', newC);
+                  },
+                })}
+                error={formState.errors.purchasePrice?.message}
+              />
+              <Input
+                label="Qtd. Mínima"
+                id="minQuantity"
+                type="number"
+                min="1"
+                step="1"
+                {...register('minQuantity', {
+                  min: { value: 1, message: 'Mínimo 1' },
+                })}
+                error={formState.errors.minQuantity?.message}
+              />
+            </div>
+
+            {/* Tabela de margem × preço */}
+            <div className="overflow-hidden rounded-lg border border-neutral-200">
+              {/* Header */}
+              <div className="grid grid-cols-[120px_1fr] gap-0 border-b border-neutral-200 bg-neutral-50 px-3 py-2">
+                <span className="text-xs font-semibold uppercase tracking-wide text-neutral-500">% Margem</span>
+                <span className="pl-3 text-xs font-semibold uppercase tracking-wide text-neutral-500">Preço de Venda (R$)</span>
+              </div>
+
+              {/* Preço A */}
+              <div className="grid grid-cols-[120px_1fr] items-end gap-3 border-b border-neutral-100 px-3 py-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-neutral-500">Margem A</label>
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={marginA}
+                      onChange={(e) => {
+                        setMarginA(e.target.value);
+                        const price = calcPrice(watchedPurchasePrice, e.target.value);
+                        if (price) setValue('priceA', price);
+                      }}
+                      className="w-16 rounded-md border border-neutral-300 px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-light"
+                    />
+                    <span className="text-xs text-neutral-400">%</span>
+                  </div>
+                </div>
+                <Input
+                  label="Preço A (atacado) *"
+                  id="priceA"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  {...register('priceA', {
+                    required: 'Preço A é obrigatório',
+                    min: { value: 0.01, message: 'Deve ser positivo' },
+                    onChange: (e) => {
+                      const margin = calcMargin(watchedPurchasePrice, e.target.value);
+                      if (margin) setMarginA(margin);
+                    },
+                  })}
+                  error={formState.errors.priceA?.message}
+                />
+              </div>
+
+              {/* Preço B */}
+              <div className="grid grid-cols-[120px_1fr] items-end gap-3 border-b border-neutral-100 px-3 py-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-neutral-500">Margem B</label>
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={marginB}
+                      onChange={(e) => {
+                        setMarginB(e.target.value);
+                        const price = calcPrice(watchedPurchasePrice, e.target.value);
+                        if (price) setValue('priceB', price);
+                      }}
+                      className="w-16 rounded-md border border-neutral-300 px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-light"
+                    />
+                    <span className="text-xs text-neutral-400">%</span>
+                  </div>
+                </div>
+                <Input
+                  label="Preço B (intermediário) *"
+                  id="priceB"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  {...register('priceB', {
+                    required: 'Preço B é obrigatório',
+                    min: { value: 0.01, message: 'Deve ser positivo' },
+                    onChange: (e) => {
+                      const margin = calcMargin(watchedPurchasePrice, e.target.value);
+                      if (margin) setMarginB(margin);
+                    },
+                  })}
+                  error={formState.errors.priceB?.message}
+                />
+              </div>
+
+              {/* Preço C */}
+              <div className="grid grid-cols-[120px_1fr] items-end gap-3 px-3 py-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-neutral-500">Margem C</label>
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={marginC}
+                      onChange={(e) => {
+                        setMarginC(e.target.value);
+                        const price = calcPrice(watchedPurchasePrice, e.target.value);
+                        if (price) setValue('priceC', price);
+                      }}
+                      className="w-16 rounded-md border border-neutral-300 px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-light"
+                    />
+                    <span className="text-xs text-neutral-400">%</span>
+                  </div>
+                </div>
+                <Input
+                  label="Preço C (varejo) *"
+                  id="priceC"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  {...register('priceC', {
+                    required: 'Preço C é obrigatório',
+                    min: { value: 0.01, message: 'Deve ser positivo' },
+                    onChange: (e) => {
+                      const margin = calcMargin(watchedPurchasePrice, e.target.value);
+                      if (margin) setMarginC(margin);
+                    },
+                  })}
+                  error={formState.errors.priceC?.message}
+                />
+              </div>
+            </div>
+
+            {/* Price order errors */}
+            {priceOrderErrors.length > 0 && (
+              <div className="space-y-1">
+                {priceOrderErrors.map((err, i) => (
+                  <p key={i} className="text-xs text-amber-600">⚠ {err}</p>
+                ))}
+              </div>
+            )}
+          </div>
         </Card>
 
         {/* ── Fotos (só na edição) ── */}

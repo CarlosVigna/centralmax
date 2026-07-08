@@ -11,8 +11,8 @@ export function Header({ onCartClick }: HeaderProps) {
   return (
     <header className="bg-primary">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-        <Link to="/" className="flex items-center">
-          <img src="/images/logo-horizontal.png" alt="CentralMax Embalagens" className="h-10 w-auto" />
+        <Link to="/" className="text-xl font-bold text-white">
+          CentralMax Embalagens
         </Link>
         <nav className="flex items-center gap-6 text-sm font-medium text-white/90">
           <Link to="/catalogo" className="hover:text-white transition-colors">

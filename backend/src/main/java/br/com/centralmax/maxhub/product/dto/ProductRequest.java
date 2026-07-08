@@ -1,5 +1,6 @@
 package br.com.centralmax.maxhub.product.dto;
 
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -13,6 +14,9 @@ public record ProductRequest(
         String description,
         @NotNull UUID categoryId,
         UUID supplierId,
+        @Size(max = 50) String sku,
+        @Positive BigDecimal purchasePrice,
+        @Min(1) Integer minQuantity,
         @NotNull @Positive BigDecimal priceA,
         @NotNull @Positive BigDecimal priceB,
         @NotNull @Positive BigDecimal priceC,

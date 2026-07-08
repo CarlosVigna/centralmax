@@ -29,6 +29,7 @@ export interface ProductSummary {
   categoryName: string;
   mainImageUrl: string | null;
   displayPrice: number;
+  minQuantity?: number;
 }
 
 export interface ProductDetail extends ProductSummary {
@@ -44,6 +45,9 @@ export interface ProductAdmin {
   categoryId: string;
   categoryName: string;
   supplierId: string | null;
+  sku: string | null;
+  purchasePrice: number | null;
+  minQuantity: number;
   priceA: number;
   priceB: number;
   priceC: number;
@@ -58,6 +62,9 @@ export interface ProductRequest {
   description?: string;
   categoryId: string;
   supplierId?: string;
+  sku?: string;
+  purchasePrice?: number;
+  minQuantity?: number;
   priceA: number;
   priceB: number;
   priceC: number;

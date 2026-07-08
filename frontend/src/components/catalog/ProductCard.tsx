@@ -70,6 +70,9 @@ export function ProductCard({ product, onCardClick, onAddClick, onAdd }: Product
       )}
 
       <span className="text-lg font-bold text-secondary">{formatCurrency(product.displayPrice)}</span>
+      {product.minQuantity && product.minQuantity > 1 && (
+        <span className="text-xs text-neutral-500">Pedido mínimo: {product.minQuantity} unidades</span>
+      )}
 
       <Button size="sm" onClick={handleAddClick} className="mt-auto">
         Adicionar ao carrinho

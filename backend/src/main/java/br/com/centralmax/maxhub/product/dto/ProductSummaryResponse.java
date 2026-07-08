@@ -10,6 +10,7 @@ public record ProductSummaryResponse(
         UUID categoryId,
         String categoryName,
         String mainImageUrl,
-        BigDecimal displayPrice
+        BigDecimal displayPrice,
+        Integer minQuantity
 ) {
 }

@@ -8,13 +8,7 @@ export function HomePage() {
       {/* Hero */}
       <section className="bg-primary py-20">
         <div className="mx-auto max-w-6xl px-4 text-center">
-          <div className="mb-8 flex justify-center">
-            <img
-              src="/images/logo-circular.png"
-              alt="CentralMax Embalagens"
-              className="h-32 w-32 animate-pulse"
-            />
-          </div>
+          <div className="mb-6 text-5xl">📦</div>
           <h1 className="text-3xl font-bold text-white sm:text-4xl lg:text-5xl">
             Soluções em Embalagens Para o Seu Negócio Ir Mais Longe
           </h1>
