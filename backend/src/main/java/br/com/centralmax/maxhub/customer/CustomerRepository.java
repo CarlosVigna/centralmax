@@ -5,7 +5,9 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -49,4 +51,26 @@ public interface CustomerRepository extends JpaRepository<Customer, UUID>, JpaSp
             LIMIT 5
             """, nativeQuery = true)
     List<Object[]> findTopCustomers();
+
+    // ── Stats para CRM avançado ───────────────────────────────────────
+
+    @Query(value = """
+            SELECT COALESCE(AVG(o.total_amount), 0), COALESCE(SUM(o.total_amount), 0),
+                   MAX(CAST(o.created_at AS date))
+            FROM orders o
+            WHERE o.customer_id = :customerId AND o.active = true AND o.status = 'CONCLUIDO'
+            """, nativeQuery = true)
+    Object[] findCustomerStats(@Param("customerId") UUID customerId);
+
+    @Query(value = """
+            SELECT p.name
+            FROM order_items oi
+            JOIN orders o ON oi.order_id = o.id
+            JOIN products p ON oi.product_id = p.id
+            WHERE o.customer_id = :customerId AND o.active = true AND o.status != 'CANCELADO'
+            GROUP BY p.id, p.name
+            ORDER BY SUM(oi.quantity) DESC
+            LIMIT 3
+            """, nativeQuery = true)
+    List<String> findFavoriteProducts(@Param("customerId") UUID customerId);
 }

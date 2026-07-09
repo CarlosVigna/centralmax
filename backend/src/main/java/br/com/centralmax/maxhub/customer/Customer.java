@@ -16,6 +16,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -93,6 +94,31 @@ public class Customer {
 
     @Column(name = "last_contacted_at")
     private LocalDateTime lastContactedAt;
+
+    @Column(name = "commercial_potential")
+    private Integer commercialPotential;
+
+    @Column(name = "commercial_notes", columnDefinition = "TEXT")
+    private String commercialNotes;
+
+    @Column(name = "business_type", length = 100)
+    private String businessType;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "prospect_status", length = 50)
+    private ProspectStatus prospectStatus;
+
+    @Column(name = "lost_reason", length = 255)
+    private String lostReason;
+
+    @Column(name = "average_ticket", precision = 15, scale = 2)
+    private BigDecimal averageTicket;
+
+    @Column(name = "total_purchased", precision = 15, scale = 2)
+    private BigDecimal totalPurchased;
+
+    @Column(name = "last_purchase_date")
+    private LocalDate lastPurchaseDate;
 
     @Column(nullable = false)
     private boolean active;

@@ -6,5 +6,8 @@ backend/src/main/resources/application.yml
 .env.local
 docker/.env
 
+# Scripts locais com credenciais
+check-railway-vars.sh
+
 # Estado local de ferramentas
 .claude/

@@ -70,13 +70,32 @@ public class ContactScheduleService {
         ContactSchedule schedule = findOrThrow(scheduleId);
         schedule.setStatus(ContactScheduleStatus.REALIZADO);
         schedule.setNotes(request != null ? request.notes() : null);
+        schedule.setResult(request != null ? request.result() : null);
         schedule.setCompletedAt(Instant.now());
 
         Customer customer = schedule.getCustomer();
         customer.setLastContactedAt(java.time.LocalDateTime.now(ZoneOffset.UTC));
 
+        // Reagendamento explícito (result = REAGENDADO ou LIGA_DEPOIS)
+        boolean isReschedule = request != null
+                && (request.result() == ContactResult.REAGENDADO || request.result() == ContactResult.LIGA_DEPOIS)
+                && request.rescheduledTo() != null;
+
         LocalDate nextDate = null;
-        if (customer.getContactCadenceDays() != null && customer.getContactCadenceDays() > 0) {
+
+        if (isReschedule) {
+            schedule.setRescheduledTo(request.rescheduledTo());
+            customer.setNextContactDate(request.rescheduledTo());
+            customerRepository.save(customer);
+            ContactSchedule next = ContactSchedule.builder()
+                    .customer(customer)
+                    .scheduledDate(request.rescheduledTo())
+                    .reason(schedule.getReason())
+                    .status(ContactScheduleStatus.PENDENTE)
+                    .build();
+            scheduleRepository.save(next);
+            nextDate = request.rescheduledTo();
+        } else if (customer.getContactCadenceDays() != null && customer.getContactCadenceDays() > 0) {
             nextDate = schedule.getScheduledDate().plusDays(customer.getContactCadenceDays());
             customer.setNextContactDate(nextDate);
             customerRepository.save(customer);
@@ -151,6 +170,7 @@ public class ContactScheduleService {
                 s.getScheduledDate(),
                 s.getReason(),
                 s.getStatus(),
+                s.getResult(),
                 s.getNotes(),
                 s.getCompletedAt(),
                 s.getCreatedAt(),

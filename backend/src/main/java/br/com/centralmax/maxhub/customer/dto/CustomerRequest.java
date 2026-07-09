@@ -2,7 +2,10 @@ package br.com.centralmax.maxhub.customer.dto;
 
 import br.com.centralmax.maxhub.customer.CustomerOrigin;
 import br.com.centralmax.maxhub.customer.CustomerStatus;
+import br.com.centralmax.maxhub.customer.ProspectStatus;
 import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -55,5 +58,20 @@ public record CustomerRequest(
 
         java.time.LocalDate nextContactDate,
 
-        String cadenceReason
+        String cadenceReason,
+
+        // Perfil Comercial
+        @Min(value = 1, message = "Potencial mínimo é 1")
+        @Max(value = 5, message = "Potencial máximo é 5")
+        Integer commercialPotential,
+
+        String commercialNotes,
+
+        @Size(max = 100)
+        String businessType,
+
+        ProspectStatus prospectStatus,
+
+        @Size(max = 255)
+        String lostReason
 ) {}

@@ -1,5 +1,6 @@
 package br.com.centralmax.maxhub.crm.dto;
 
+import br.com.centralmax.maxhub.crm.ContactResult;
 import br.com.centralmax.maxhub.crm.ContactScheduleStatus;
 
 import java.time.Instant;
@@ -15,6 +16,7 @@ public record ContactScheduleResponse(
         LocalDate scheduledDate,
         String reason,
         ContactScheduleStatus status,
+        ContactResult result,
         String notes,
         Instant completedAt,
         Instant createdAt,

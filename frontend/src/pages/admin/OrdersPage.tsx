@@ -257,7 +257,50 @@ export function OrdersPage() {
         <p className="text-sm text-neutral-600">Carregando...</p>
       ) : (
         <>
-          <div className="overflow-hidden rounded-lg border border-neutral-300 bg-white">
+          {/* Mobile card list */}
+          <div className="space-y-2 md:hidden">
+            {orders.length === 0 ? (
+              <p className="text-sm text-neutral-400">Nenhum pedido encontrado.</p>
+            ) : orders.map((order) => {
+              const next = nextStatus(order.status);
+              const canCancel = order.status !== 'CONCLUIDO' && order.status !== 'CANCELADO';
+              return (
+                <div key={order.id} className="rounded-lg border border-neutral-200 bg-white px-4 py-3 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <Link to={`/admin/pedidos/${order.id}`}
+                        className="font-mono text-sm font-semibold text-primary hover:underline">
+                        {order.orderNumber}
+                      </Link>
+                      <p className="text-xs text-neutral-500">{order.customerDisplayName} &middot; {formatDate(order.createdAt)}</p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      <Badge variant={STATUS_BADGE_VARIANT[order.status]}>{order.statusLabel}</Badge>
+                      <span className="text-sm font-semibold text-neutral-900">{formatCurrency(order.totalAmount)}</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    <Link to={`/admin/pedidos/${order.id}`}>
+                      <Button size="sm" variant="ghost">Ver</Button>
+                    </Link>
+                    {next && (
+                      <Button size="sm" variant="outline"
+                        disabled={advanceMutation.isPending}
+                        onClick={() => advanceMutation.mutate({ id: order.id, status: next })}>
+                        {STATUS_LABELS[next]}
+                      </Button>
+                    )}
+                    {canCancel && (
+                      <Button size="sm" variant="danger" onClick={() => setConfirmCancel(order)}>Cancelar</Button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden overflow-hidden rounded-lg border border-neutral-300 bg-white md:block">
             <Table columns={columns} data={orders} emptyMessage="Nenhum pedido encontrado." />
           </div>
           {data && data.totalElements > 0 && (
@@ -267,6 +310,16 @@ export function OrdersPage() {
           )}
         </>
       )}
+
+      {/* FAB mobile */}
+      <Link
+        to="/admin/pedidos/novo"
+        className="fixed bottom-6 right-6 z-30 flex h-14 w-14 items-center justify-center
+          rounded-full bg-primary text-white shadow-lg transition hover:bg-primary/90 md:hidden"
+        aria-label="Novo pedido"
+      >
+        <span className="text-2xl leading-none">+</span>
+      </Link>
 
       {/* Modal cancelar */}
       <Modal

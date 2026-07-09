@@ -3,10 +3,13 @@ package br.com.centralmax.maxhub.customer.dto;
 import br.com.centralmax.maxhub.customer.CustomerOrigin;
 import br.com.centralmax.maxhub.customer.CustomerStatus;
 import br.com.centralmax.maxhub.customer.CustomerType;
+import br.com.centralmax.maxhub.customer.ProspectStatus;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 public record CustomerResponse(
@@ -34,6 +37,17 @@ public record CustomerResponse(
         LocalDateTime lastContactedAt,
         String cadenceLabel,
         boolean isContactDue,
+        // Perfil Comercial
+        Integer commercialPotential,
+        String commercialNotes,
+        String businessType,
+        ProspectStatus prospectStatus,
+        String prospectStatusLabel,
+        String lostReason,
+        BigDecimal averageTicket,
+        BigDecimal totalPurchased,
+        LocalDate lastPurchaseDate,
+        List<String> favoriteProducts,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -58,6 +72,19 @@ public record CustomerResponse(
             case VISITA -> "Visita";
             case INDICACAO -> "Indicação";
             case TELEFONE -> "Telefone";
+        };
+    }
+
+    public static String labelOf(ProspectStatus status) {
+        if (status == null) return null;
+        return switch (status) {
+            case NAO_VISITADO -> "Não visitado";
+            case VISITADO -> "Visitado";
+            case INTERESSADO -> "Interessado";
+            case ORCAMENTO_ENVIADO -> "Orçamento enviado";
+            case NEGOCIANDO -> "Negociando";
+            case CONVERTIDO -> "Convertido";
+            case PERDIDO -> "Perdido";
         };
     }
 }

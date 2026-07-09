@@ -173,7 +173,37 @@ export function CustomersPage() {
         <p className="text-sm text-neutral-600">Carregando...</p>
       ) : (
         <>
-          <div className="overflow-hidden rounded-lg border border-neutral-300 bg-white">
+          {/* Mobile card list */}
+          <div className="space-y-2 md:hidden">
+            {customers.length === 0 ? (
+              <p className="text-sm text-neutral-400">Nenhum cliente encontrado.</p>
+            ) : customers.map((c) => (
+              <div key={c.id} className="rounded-lg border border-neutral-200 bg-white px-4 py-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <Link to={`/admin/clientes/${c.id}`}
+                      className="block text-sm font-semibold text-neutral-900 hover:text-primary truncate">
+                      {c.name}
+                    </Link>
+                    <p className="text-xs text-neutral-500">{c.phone ?? '—'} &middot; {c.originLabel}</p>
+                  </div>
+                  <Badge variant={statusVariant(c.status)}>{c.statusLabel}</Badge>
+                </div>
+                <div className="mt-2 flex gap-2">
+                  <Link to={`/admin/clientes/${c.id}`}>
+                    <Button size="sm" variant="ghost">Ver</Button>
+                  </Link>
+                  <Link to={`/admin/clientes/${c.id}/editar`}>
+                    <Button size="sm" variant="outline">Editar</Button>
+                  </Link>
+                  <Button size="sm" variant="danger" onClick={() => setConfirmDelete(c)}>Desativar</Button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden overflow-hidden rounded-lg border border-neutral-300 bg-white md:block">
             <Table
               columns={columns}
               data={customers}
@@ -187,6 +217,16 @@ export function CustomersPage() {
           )}
         </>
       )}
+
+      {/* FAB mobile */}
+      <Link
+        to="/admin/clientes/novo"
+        className="fixed bottom-6 right-6 z-30 flex h-14 w-14 items-center justify-center
+          rounded-full bg-primary text-white shadow-lg transition hover:bg-primary/90 md:hidden"
+        aria-label="Novo cliente"
+      >
+        <span className="text-2xl leading-none">+</span>
+      </Link>
 
       {/* Modal de confirmação de desativação */}
       <Modal

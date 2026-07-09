@@ -19,8 +19,10 @@ import { Badge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
 import { INTERACTION_TYPE_OPTIONS, INTERACTION_TYPE_LABELS } from '../../types/interaction';
 import { STATUS_BADGE_VARIANT, STATUS_LABELS } from '../../types/order';
+import { CONTACT_RESULT_OPTIONS } from '../../types/contactSchedule';
 import type { InteractionRequest, InteractionType } from '../../types/interaction';
 import type { OrderResponse } from '../../types/order';
+import type { ContactResult } from '../../types/contactSchedule';
 
 type Tab = 'resumo' | 'pedidos' | 'historico';
 
@@ -99,6 +101,8 @@ export function CustomerDetailPage() {
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [completeScheduleId, setCompleteScheduleId] = useState<string | null>(null);
   const [completeNotes, setCompleteNotes] = useState('');
+  const [completeResult, setCompleteResult] = useState<ContactResult | ''>('');
+  const [completeRescheduleTo, setCompleteRescheduleTo] = useState('');
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [scheduleDate, setScheduleDate] = useState('');
   const [scheduleReason, setScheduleReason] = useState('');
@@ -111,15 +115,19 @@ export function CustomerDetailPage() {
   });
 
   const completeMutation = useMutation({
-    mutationFn: ({ scheduleId, notes }: { scheduleId: string; notes?: string }) =>
-      completeSchedule(scheduleId, { notes }),
-    onSuccess: (result) => {
+    mutationFn: ({ scheduleId, notes, result, rescheduledTo }: {
+      scheduleId: string; notes?: string; result: ContactResult; rescheduledTo?: string;
+    }) =>
+      completeSchedule(scheduleId, { notes, result, rescheduledTo }),
+    onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['customer-schedules', id] });
       queryClient.invalidateQueries({ queryKey: ['customer', id] });
       setShowCompleteModal(false);
       setCompleteNotes('');
-      if (result.nextContactDate) {
-        const d = new Date(result.nextContactDate + 'T00:00:00').toLocaleDateString('pt-BR');
+      setCompleteResult('');
+      setCompleteRescheduleTo('');
+      if (res.nextContactDate) {
+        const d = new Date(res.nextContactDate + 'T00:00:00').toLocaleDateString('pt-BR');
         setCadenceMessage(`Contato registrado! Próximo agendado para ${d}`);
         setTimeout(() => setCadenceMessage(null), 5000);
       }
@@ -278,6 +286,71 @@ export function CustomerDetailPage() {
               )}
             </Card>
 
+            {/* CRM Profile Card */}
+            {(customer.commercialPotential != null || customer.businessType || customer.prospectStatus ||
+              customer.averageTicket != null || customer.totalPurchased != null || (customer.favoriteProducts?.length ?? 0) > 0 ||
+              customer.commercialNotes) && (
+              <Card className="sm:col-span-2">
+                <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-neutral-500">
+                  📊 Perfil Comercial
+                </h2>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <dl className="space-y-3 text-sm">
+                    {customer.commercialPotential != null && (
+                      <Row label="Potencial">
+                        <span className="text-amber-400 text-base tracking-tight">
+                          {'★'.repeat(customer.commercialPotential)}
+                          <span className="text-neutral-200">{'★'.repeat(5 - customer.commercialPotential)}</span>
+                        </span>
+                      </Row>
+                    )}
+                    {customer.businessType && <Row label="Tipo de negócio">{customer.businessType}</Row>}
+                    {customer.prospectStatusLabel && <Row label="Status prospect">{customer.prospectStatusLabel}</Row>}
+                    {customer.lostReason && <Row label="Motivo perda">{customer.lostReason}</Row>}
+                    {customer.averageTicket != null && (
+                      <Row label="Ticket médio">{formatCurrency(customer.averageTicket)}</Row>
+                    )}
+                    {customer.totalPurchased != null && (
+                      <Row label="Total comprado">{formatCurrency(customer.totalPurchased)}</Row>
+                    )}
+                    {customer.lastPurchaseDate && (
+                      <Row label="Última compra">
+                        {new Date(customer.lastPurchaseDate + 'T00:00:00').toLocaleDateString('pt-BR')}
+                      </Row>
+                    )}
+                  </dl>
+                  <div className="space-y-3">
+                    {(customer.favoriteProducts?.length ?? 0) > 0 && (
+                      <div>
+                        <p className="mb-1 text-xs font-medium text-neutral-500">Produtos favoritos</p>
+                        <ul className="space-y-1">
+                          {customer.favoriteProducts!.map((p, i) => (
+                            <li key={i} className="text-sm text-neutral-700">
+                              <span className="mr-1.5 text-neutral-400">{i + 1}.</span>{p}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {customer.fullAddress && (
+                      <div>
+                        <p className="mb-1 text-xs font-medium text-neutral-500">Endereço</p>
+                        <p className="text-sm text-neutral-700">{customer.fullAddress}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {customer.commercialNotes && (
+                  <div className="mt-3 border-t border-neutral-100 pt-3">
+                    <p className="mb-1 text-xs font-medium text-neutral-500">Notas comerciais</p>
+                    <p className="text-sm text-neutral-700 leading-relaxed whitespace-pre-wrap">
+                      {customer.commercialNotes}
+                    </p>
+                  </div>
+                )}
+              </Card>
+            )}
+
             {customer.notes && (
               <Card className="sm:col-span-2">
                 <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-500">
@@ -295,14 +368,51 @@ export function CustomerDetailPage() {
       {/* Modal: Registrar Contato */}
       <Modal
         open={showCompleteModal}
-        onClose={() => setShowCompleteModal(false)}
+        onClose={() => { setShowCompleteModal(false); setCompleteResult(''); setCompleteRescheduleTo(''); }}
         title="Registrar Contato"
       >
-        <div className="space-y-3">
+        <div className="space-y-4">
+          <div>
+            <label className="mb-2 block text-sm font-medium text-neutral-700">Resultado *</label>
+            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+              {CONTACT_RESULT_OPTIONS.map((opt) => (
+                <label
+                  key={opt.value}
+                  className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition
+                    ${completeResult === opt.value
+                      ? 'border-primary bg-primary/5 font-medium text-primary'
+                      : 'border-neutral-200 hover:border-neutral-300'}`}
+                >
+                  <input
+                    type="radio"
+                    name="detailResult"
+                    checked={completeResult === opt.value}
+                    onChange={() => setCompleteResult(opt.value)}
+                    className="sr-only"
+                  />
+                  <span>{opt.emoji}</span>
+                  <span>{opt.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {(completeResult === 'REAGENDADO' || completeResult === 'LIGA_DEPOIS') && (
+            <div>
+              <label className="mb-1 block text-sm font-medium text-neutral-700">Reagendar para *</label>
+              <input
+                type="date"
+                value={completeRescheduleTo}
+                onChange={(e) => setCompleteRescheduleTo(e.target.value)}
+                className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+          )}
+
           <div>
             <label className="mb-1 block text-sm font-medium text-neutral-700">Observações (opcional)</label>
             <textarea
-              rows={3}
+              rows={2}
               value={completeNotes}
               onChange={(e) => setCompleteNotes(e.target.value)}
               placeholder="Como foi o contato?"
@@ -310,11 +420,15 @@ export function CustomerDetailPage() {
             />
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setShowCompleteModal(false)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => { setShowCompleteModal(false); setCompleteResult(''); setCompleteRescheduleTo(''); }}>Cancelar</Button>
             <Button
-              disabled={completeMutation.isPending}
-              onClick={() => completeScheduleId && completeMutation.mutate({
-                scheduleId: completeScheduleId, notes: completeNotes || undefined
+              disabled={!completeResult || completeMutation.isPending}
+              onClick={() => completeScheduleId && completeResult && completeMutation.mutate({
+                scheduleId: completeScheduleId,
+                notes: completeNotes || undefined,
+                result: completeResult as ContactResult,
+                rescheduledTo: (completeResult === 'REAGENDADO' || completeResult === 'LIGA_DEPOIS') && completeRescheduleTo
+                  ? completeRescheduleTo : undefined,
               })}
             >
               {completeMutation.isPending ? 'Salvando...' : 'Confirmar contato'}

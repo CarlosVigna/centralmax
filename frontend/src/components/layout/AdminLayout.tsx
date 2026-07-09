@@ -24,15 +24,21 @@ function timeAgo(iso: string): string {
   return `há ${Math.floor(hours / 24)}d`;
 }
 
+const IconMenu = () => (
+  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+    <path d="M3 12h18M3 6h18M3 18h18" />
+  </svg>
+);
+
 export function AdminLayout() {
   const { user, logout } = useAuth();
   const { data: notifications } = useNotifications();
   const [showBell, setShowBell] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const bellRef = useRef<HTMLDivElement>(null);
 
   const badgeCount = (notifications?.newOrders ?? 0) + (notifications?.overdueContacts ?? 0) + (notifications?.schedulesToday ?? 0);
 
-  // Close dropdown on outside click
   useEffect(() => {
     if (!showBell) return;
     function handleClick(e: MouseEvent) {
@@ -44,26 +50,68 @@ export function AdminLayout() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, [showBell]);
 
+  // Fecha drawer ao redimensionar para desktop
+  useEffect(() => {
+    function onResize() {
+      if (window.innerWidth >= 768) setDrawerOpen(false);
+    }
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
   return (
     <div className="flex min-h-screen">
-      <AdminSidebar />
-      <div className="flex flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-neutral-300 bg-white px-6 py-4">
-          <span className="text-sm text-neutral-600">{user?.name}</span>
+      {/* Sidebar desktop */}
+      <div className="hidden md:flex md:flex-col md:w-60 shrink-0">
+        <AdminSidebar />
+      </div>
 
+      {/* Drawer mobile — overlay */}
+      {drawerOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          onClick={() => setDrawerOpen(false)}
+          aria-hidden
+        />
+      )}
+
+      {/* Drawer mobile — painel */}
+      <div
+        className={`fixed inset-y-0 left-0 z-50 flex flex-col transition-transform duration-200 md:hidden
+          ${drawerOpen ? 'translate-x-0' : '-translate-x-full'}`}
+        style={{ width: 280 }}
+      >
+        <AdminSidebar onClose={() => setDrawerOpen(false)} />
+      </div>
+
+      {/* Conteúdo principal */}
+      <div className="flex flex-1 flex-col min-w-0">
+        <header className="flex items-center justify-between border-b border-neutral-300 bg-white px-4 py-3 md:px-6 md:py-4">
           <div className="flex items-center gap-3">
-            {/* Global search trigger */}
+            {/* Hamburguer mobile */}
+            <button
+              className="rounded-md p-1.5 text-neutral-600 hover:bg-neutral-100 transition md:hidden"
+              onClick={() => setDrawerOpen(true)}
+              aria-label="Abrir menu"
+            >
+              <IconMenu />
+            </button>
+            <span className="text-sm text-neutral-600 hidden sm:block">{user?.name}</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Busca global */}
             <button
               onClick={() => window.dispatchEvent(new Event('globalSearch:open'))}
               className="flex items-center gap-1.5 rounded-md border border-neutral-200 bg-neutral-50
-                px-3 py-1.5 text-xs text-neutral-500 hover:bg-neutral-100 transition"
+                px-2.5 py-1.5 text-xs text-neutral-500 hover:bg-neutral-100 transition"
               title="Busca global (Ctrl+K)"
             >
               🔍 <span className="hidden sm:inline">Buscar</span>
-              <kbd className="rounded border border-neutral-200 px-1 text-[10px]">Ctrl+K</kbd>
+              <kbd className="hidden sm:inline rounded border border-neutral-200 px-1 text-[10px]">Ctrl+K</kbd>
             </button>
 
-            {/* Notification bell */}
+            {/* Sino de notificações */}
             <div ref={bellRef} className="relative">
               <button
                 onClick={() => setShowBell((v) => !v)}
@@ -82,7 +130,7 @@ export function AdminLayout() {
 
               {showBell && (
                 <div className="absolute right-0 top-10 z-50 w-80 rounded-xl border border-neutral-200
-                  bg-white shadow-xl">
+                  bg-white shadow-xl max-h-[80vh] overflow-y-auto">
                   <div className="border-b border-neutral-100 px-4 py-3">
                     <p className="text-sm font-semibold text-neutral-900">Notificações</p>
                   </div>
@@ -99,9 +147,7 @@ export function AdminLayout() {
                         {notifications.recentOrders.map((order) => (
                           <li key={order.id} className="flex items-start justify-between gap-2">
                             <div>
-                              <p className="text-xs font-semibold text-primary">
-                                {order.orderNumber}
-                              </p>
+                              <p className="text-xs font-semibold text-primary">{order.orderNumber}</p>
                               <p className="text-xs text-neutral-600">{order.customerName}</p>
                             </div>
                             <span className="whitespace-nowrap text-xs text-neutral-400">
@@ -111,11 +157,8 @@ export function AdminLayout() {
                         ))}
                       </ul>
                     )}
-                    <Link
-                      to="/admin/expedicao"
-                      onClick={() => setShowBell(false)}
-                      className="mt-2 block text-xs text-primary hover:underline"
-                    >
+                    <Link to="/admin/expedicao" onClick={() => setShowBell(false)}
+                      className="mt-2 block text-xs text-primary hover:underline">
                       Ver todos os pedidos →
                     </Link>
                   </div>
@@ -136,12 +179,9 @@ export function AdminLayout() {
                               {s.reason && <p className="text-xs text-neutral-500">{s.reason}</p>}
                             </div>
                             {s.phone && (
-                              <a
-                                href={`https://api.whatsapp.com/send?phone=${s.phone.replace(/\D/g, '').replace(/^(?!55)/, '55')}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="whitespace-nowrap text-xs text-green-600 hover:underline"
-                              >
+                              <a href={`https://api.whatsapp.com/send?phone=${s.phone.replace(/\D/g, '').replace(/^(?!55)/, '55')}`}
+                                target="_blank" rel="noreferrer"
+                                className="whitespace-nowrap text-xs text-green-600 hover:underline">
                                 💬
                               </a>
                             )}
@@ -149,11 +189,8 @@ export function AdminLayout() {
                         ))}
                       </ul>
                     )}
-                    <Link
-                      to="/admin/agenda?period=today"
-                      onClick={() => setShowBell(false)}
-                      className="mt-2 block text-xs text-primary hover:underline"
-                    >
+                    <Link to="/admin/agenda?period=today" onClick={() => setShowBell(false)}
+                      className="mt-2 block text-xs text-primary hover:underline">
                       Ver agenda completa →
                     </Link>
                   </div>
@@ -177,11 +214,8 @@ export function AdminLayout() {
                         ))}
                       </ul>
                     )}
-                    <Link
-                      to="/admin/agenda?period=overdue"
-                      onClick={() => setShowBell(false)}
-                      className="mt-2 block text-xs text-primary hover:underline"
-                    >
+                    <Link to="/admin/agenda?period=overdue" onClick={() => setShowBell(false)}
+                      className="mt-2 block text-xs text-primary hover:underline">
                       Ver agenda →
                     </Link>
                   </div>
@@ -189,16 +223,15 @@ export function AdminLayout() {
               )}
             </div>
 
-            <Button variant="ghost" size="sm" onClick={logout}>
-              Sair
-            </Button>
+            <Button variant="ghost" size="sm" onClick={logout}>Sair</Button>
           </div>
         </header>
 
-        <main className="flex-1 bg-neutral-100 p-6">
+        <main className="flex-1 bg-neutral-100 p-4 md:p-6">
           <Outlet />
         </main>
       </div>
+
       <GlobalSearch />
     </div>
   );

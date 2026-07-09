@@ -228,8 +228,58 @@ export function FinancialPage() {
         </div>
       </Card>
 
+      {/* Mobile view */}
+      <div className="mt-4 md:hidden">
+        {isLoading ? (
+          <p className="text-sm text-neutral-600">Carregando...</p>
+        ) : !entries?.content.length ? (
+          <p className="text-sm text-neutral-600">Nenhum lançamento encontrado.</p>
+        ) : (
+          <div className="space-y-2">
+            {entries.content.map((entry) => (
+              <div key={entry.id} className="rounded-lg border border-neutral-200 bg-white px-4 py-3 space-y-1.5">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-medium text-neutral-900">{entry.description}</p>
+                  <span className={`text-sm font-semibold ${entry.type === 'RECEITA' ? 'text-green-600' : 'text-danger'}`}>
+                    {entry.type === 'DESPESA' ? '−' : '+'}{fmtCurrency(entry.amount)}
+                  </span>
+                </div>
+                <p className="text-xs text-neutral-500">
+                  Venc. {fmtDate(entry.dueDate)} &middot; {entry.statusLabel}
+                </p>
+                <div className="flex gap-1.5">
+                  {(entry.status === 'PENDENTE' || entry.status === 'VENCIDO') && (
+                    <button
+                      onClick={() => payMutation.mutate(entry.id)}
+                      disabled={payMutation.isPending}
+                      className="rounded bg-green-100 px-2 py-1 text-xs font-medium text-green-700 hover:bg-green-200 disabled:opacity-50"
+                    >
+                      Receber
+                    </button>
+                  )}
+                  {entry.status !== 'PAGO' && entry.status !== 'VENCIDO' && (
+                    <button onClick={() => openEdit(entry)}
+                      className="rounded bg-neutral-100 px-2 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-200">
+                      Editar
+                    </button>
+                  )}
+                  {entry.status !== 'PAGO' && (
+                    <button
+                      onClick={() => { if (confirm('Excluir lançamento?')) deleteMutation.mutate(entry.id); }}
+                      disabled={deleteMutation.isPending}
+                      className="rounded bg-red-50 px-2 py-1 text-xs font-medium text-danger hover:bg-red-100 disabled:opacity-50">
+                      Excluir
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Table */}
-      <div className="mt-4 overflow-hidden rounded-lg border border-neutral-200 bg-white">
+      <div className="mt-4 hidden overflow-hidden rounded-lg border border-neutral-200 bg-white md:block">
         {isLoading ? (
           <p className="p-6 text-sm text-neutral-600">Carregando...</p>
         ) : !entries?.content.length ? (

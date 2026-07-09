@@ -7,8 +7,8 @@ import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { Button } from '../../components/ui/Button';
 import { createCustomer, getCustomer, updateCustomer } from '../../services/customerService';
-import { ORIGIN_OPTIONS, STATUS_OPTIONS } from '../../types/customer';
-import type { CustomerRequest } from '../../types/customer';
+import { ORIGIN_OPTIONS, STATUS_OPTIONS, PROSPECT_STATUS_OPTIONS } from '../../types/customer';
+import type { CustomerRequest, ProspectStatus } from '../../types/customer';
 
 interface CustomerFormValues {
   name: string;
@@ -28,6 +28,12 @@ interface CustomerFormValues {
   contactCadenceDays: string;
   nextContactDate: string;
   cadenceReason: string;
+  // CRM
+  commercialPotential: string;
+  commercialNotes: string;
+  businessType: string;
+  prospectStatus: string;
+  lostReason: string;
 }
 
 export function CustomerFormPage() {
@@ -64,10 +70,18 @@ export function CustomerFormPage() {
       contactCadenceDays: '',
       nextContactDate: '',
       cadenceReason: '',
+      commercialPotential: '',
+      commercialNotes: '',
+      businessType: '',
+      prospectStatus: '',
+      lostReason: '',
     },
   });
 
   const cadenceDaysWatched = watch('contactCadenceDays');
+  const statusWatched = watch('status');
+  const prospectStatusWatched = watch('prospectStatus');
+  const potentialWatched = watch('commercialPotential');
 
   useEffect(() => {
     if (existing) {
@@ -89,6 +103,11 @@ export function CustomerFormPage() {
         contactCadenceDays: existing.contactCadenceDays != null ? String(existing.contactCadenceDays) : '',
         nextContactDate: existing.nextContactDate ?? '',
         cadenceReason: '',
+        commercialPotential: existing.commercialPotential != null ? String(existing.commercialPotential) : '',
+        commercialNotes: existing.commercialNotes ?? '',
+        businessType: existing.businessType ?? '',
+        prospectStatus: existing.prospectStatus ?? '',
+        lostReason: existing.lostReason ?? '',
       });
     }
   }, [existing, reset]);
@@ -149,6 +168,11 @@ export function CustomerFormPage() {
       contactCadenceDays: values.contactCadenceDays ? Number(values.contactCadenceDays) : undefined,
       nextContactDate: values.nextContactDate || undefined,
       cadenceReason: values.cadenceReason.trim() || undefined,
+      commercialPotential: values.commercialPotential ? Number(values.commercialPotential) : undefined,
+      commercialNotes: values.commercialNotes.trim() || undefined,
+      businessType: values.businessType.trim() || undefined,
+      prospectStatus: values.prospectStatus ? values.prospectStatus as ProspectStatus : undefined,
+      lostReason: values.lostReason.trim() || undefined,
     };
     saveMutation.mutate(request);
   }
@@ -418,6 +442,99 @@ export function CustomerFormPage() {
                 })}
               />
             </div>
+          </div>
+        </div>
+
+        {/* ── Perfil Comercial ── */}
+        <div className="rounded-lg border border-neutral-200 p-4">
+          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-neutral-500">
+            Perfil Comercial
+          </h2>
+
+          {/* Potencial — star rating */}
+          <div className="mb-4">
+            <label className="mb-1 block text-sm font-medium text-neutral-900">
+              Potencial comercial
+            </label>
+            <div className="flex gap-1">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  type="button"
+                  onClick={() => setValue('commercialPotential', potentialWatched === String(star) ? '' : String(star))}
+                  className={`text-2xl leading-none transition ${
+                    Number(potentialWatched) >= star ? 'text-amber-400' : 'text-neutral-200'
+                  }`}
+                >
+                  ★
+                </button>
+              ))}
+            </div>
+            <input type="hidden" {...register('commercialPotential')} />
+          </div>
+
+          <div className="mb-4">
+            <label className="mb-1 block text-sm font-medium text-neutral-900">
+              Tipo de negócio
+            </label>
+            <input
+              type="text"
+              list="businessTypeList"
+              placeholder="Ex: Papelaria, Gráfica, Supermercado..."
+              className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-light"
+              {...register('businessType', { maxLength: { value: 100, message: 'Máximo 100 caracteres' } })}
+            />
+            <datalist id="businessTypeList">
+              <option value="Papelaria" />
+              <option value="Gráfica" />
+              <option value="Supermercado" />
+              <option value="Padaria" />
+              <option value="Distribuidora" />
+              <option value="Atacado" />
+              <option value="E-commerce" />
+              <option value="Farmácia" />
+            </datalist>
+          </div>
+
+          {statusWatched === 'PROSPECT' && (
+            <div className="mb-4">
+              <label className="mb-1 block text-sm font-medium text-neutral-900">
+                Status do prospect
+              </label>
+              <select
+                className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-light"
+                {...register('prospectStatus')}
+              >
+                <option value="">Selecione...</option>
+                {PROSPECT_STATUS_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {prospectStatusWatched === 'PERDIDO' && (
+            <div className="mb-4">
+              <Input
+                label="Motivo da perda"
+                id="lostReason"
+                placeholder="Por que o prospect foi perdido?"
+                {...register('lostReason', { maxLength: { value: 255, message: 'Máximo 255 caracteres' } })}
+                error={formState.errors.lostReason?.message}
+              />
+            </div>
+          )}
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-neutral-900">
+              Notas comerciais
+            </label>
+            <textarea
+              rows={3}
+              placeholder="Produtos de interesse, objeções, perfil de compra..."
+              className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-light"
+              {...register('commercialNotes', { maxLength: { value: 2000, message: 'Máximo 2000 caracteres' } })}
+            />
           </div>
         </div>
 

@@ -5,6 +5,7 @@ import br.com.centralmax.maxhub.common.exception.ResourceNotFoundException;
 import br.com.centralmax.maxhub.common.response.PageResponse;
 import br.com.centralmax.maxhub.customer.Customer;
 import br.com.centralmax.maxhub.customer.CustomerRepository;
+import br.com.centralmax.maxhub.customer.CustomerService;
 import br.com.centralmax.maxhub.customer.CustomerType;
 import br.com.centralmax.maxhub.financial.FinancialEntryService;
 import br.com.centralmax.maxhub.order.dto.OrderRequest;
@@ -48,6 +49,7 @@ public class OrderService {
     private final ProductRepository productRepository;
     private final StockMovementRepository stockMovementRepository;
     private final FinancialEntryService financialEntryService;
+    private final CustomerService customerService;
     private final OrderMapper orderMapper;
 
     @Transactional(readOnly = true)
@@ -310,6 +312,9 @@ public class OrderService {
         } else if (request.status() == OrderStatus.CONCLUIDO) {
             order = orderRepository.save(order);
             financialEntryService.markAsPaidByOrderId(id);
+            if (order.getCustomer() != null) {
+                customerService.updateCustomerStats(order.getCustomer().getId());
+            }
         } else {
             order = orderRepository.save(order);
         }

@@ -1,8 +1,11 @@
 package br.com.centralmax.maxhub.customer;
 
 import br.com.centralmax.maxhub.customer.dto.CustomerResponse;
+import org.mapstruct.Context;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
+
+import java.util.List;
 
 @Mapper(componentModel = "spring")
 public interface CustomerMapper {
@@ -14,7 +17,27 @@ public interface CustomerMapper {
     @Mapping(target = "fullAddress", expression = "java(buildFullAddress(customer))")
     @Mapping(target = "cadenceLabel", expression = "java(buildCadenceLabel(customer))")
     @Mapping(target = "isContactDue", expression = "java(isContactDue(customer))")
+    @Mapping(target = "prospectStatusLabel",
+            expression = "java(br.com.centralmax.maxhub.customer.dto.CustomerResponse.labelOf(customer.getProspectStatus()))")
+    @Mapping(target = "favoriteProducts", ignore = true)
     CustomerResponse toResponse(Customer customer);
+
+    default CustomerResponse toResponseWithFavorites(Customer customer, List<String> favorites) {
+        CustomerResponse base = toResponse(customer);
+        return new CustomerResponse(
+                base.id(), base.name(), base.email(), base.phone(), base.document(),
+                base.status(), base.statusLabel(), base.customerType(), base.origin(), base.originLabel(),
+                base.notes(), base.addressStreet(), base.addressNumber(), base.addressComplement(),
+                base.addressNeighborhood(), base.addressCity(), base.addressState(), base.addressZip(),
+                base.fullAddress(), base.contactCadenceDays(), base.nextContactDate(),
+                base.lastContactedAt(), base.cadenceLabel(), base.isContactDue(),
+                base.commercialPotential(), base.commercialNotes(), base.businessType(),
+                base.prospectStatus(), base.prospectStatusLabel(), base.lostReason(),
+                base.averageTicket(), base.totalPurchased(), base.lastPurchaseDate(),
+                favorites,
+                base.createdAt(), base.updatedAt()
+        );
+    }
 
     default String buildCadenceLabel(Customer customer) {
         if (customer.getContactCadenceDays() == null) return null;

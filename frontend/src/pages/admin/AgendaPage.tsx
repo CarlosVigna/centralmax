@@ -5,7 +5,8 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { getAgendaSchedules, completeSchedule, cancelSchedule } from '../../services/contactScheduleService';
-import type { ContactSchedule } from '../../types/contactSchedule';
+import type { ContactSchedule, ContactResult } from '../../types/contactSchedule';
+import { CONTACT_RESULT_OPTIONS } from '../../types/contactSchedule';
 
 type Period = 'today' | 'tomorrow' | 'week' | 'month' | 'overdue';
 
@@ -27,6 +28,12 @@ function daysFromToday(iso: string): number {
   today.setHours(0, 0, 0, 0);
   const target = new Date(iso + 'T00:00:00');
   return Math.round((target.getTime() - today.getTime()) / 86_400_000);
+}
+
+function addDays(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split('T')[0];
 }
 
 function buildWhatsAppUrl(phone: string, customerName: string): string {
@@ -56,15 +63,25 @@ function groupByDate(items: ContactSchedule[]): Record<string, ContactSchedule[]
   return groups;
 }
 
+interface RegisterState {
+  scheduleId: string;
+  customerName: string;
+  customerId: string;
+}
+
 export function AgendaPage() {
   const [searchParams] = useSearchParams();
   const initialPeriod = (searchParams.get('period') as Period) ?? 'today';
   const [period, setPeriod] = useState<Period>(initialPeriod);
   const queryClient = useQueryClient();
 
-  const [completeId, setCompleteId] = useState<string | null>(null);
-  const [completeNotes, setCompleteNotes] = useState('');
+  // Modal de registro
+  const [registerState, setRegisterState] = useState<RegisterState | null>(null);
+  const [contactResult, setContactResult] = useState<ContactResult | ''>('');
+  const [contactNotes, setContactNotes] = useState('');
+  const [rescheduleTo, setRescheduleTo] = useState('');
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [showCreateOrder, setShowCreateOrder] = useState<{ id: string; name: string } | null>(null);
 
   const { data: items = [], isLoading, isError } = useQuery({
     queryKey: ['agenda', period],
@@ -72,14 +89,23 @@ export function AgendaPage() {
   });
 
   const completeMutation = useMutation({
-    mutationFn: ({ id, notes }: { id: string; notes?: string }) =>
-      completeSchedule(id, { notes }),
-    onSuccess: (result) => {
+    mutationFn: ({ id, notes, result, rescheduledTo }: {
+      id: string; notes?: string; result: ContactResult; rescheduledTo?: string;
+    }) =>
+      completeSchedule(id, { notes, result, rescheduledTo }),
+    onSuccess: (res, vars) => {
       queryClient.invalidateQueries({ queryKey: ['agenda'] });
-      setCompleteId(null);
-      setCompleteNotes('');
-      if (result.nextContactDate) {
-        setSuccessMsg(`Contato registrado! Próximo agendado para ${formatLocalDate(result.nextContactDate)}`);
+      closeRegisterModal();
+
+      // Toast de "Comprou"
+      if (vars.result === 'COMPROU') {
+        const item = items.find((i) => i.id === vars.id);
+        if (item) {
+          setShowCreateOrder({ id: item.customerId, name: item.customerName });
+          setTimeout(() => setShowCreateOrder(null), 8000);
+        }
+      } else if (res.nextContactDate) {
+        setSuccessMsg(`Contato registrado! Próximo agendado para ${formatLocalDate(res.nextContactDate)}`);
         setTimeout(() => setSuccessMsg(null), 5000);
       } else {
         setSuccessMsg('Contato registrado com sucesso!');
@@ -93,6 +119,34 @@ export function AgendaPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['agenda'] }),
   });
 
+  function openRegister(item: ContactSchedule, defaultResult?: ContactResult) {
+    setRegisterState({ scheduleId: item.id, customerName: item.customerName, customerId: item.customerId });
+    setContactResult(defaultResult ?? '');
+    setContactNotes('');
+    setRescheduleTo('');
+  }
+
+  function closeRegisterModal() {
+    setRegisterState(null);
+    setContactResult('');
+    setContactNotes('');
+    setRescheduleTo('');
+  }
+
+  function handleConfirmRegister() {
+    if (!registerState || !contactResult) return;
+    completeMutation.mutate({
+      id: registerState.scheduleId,
+      notes: contactNotes || undefined,
+      result: contactResult as ContactResult,
+      rescheduledTo: (contactResult === 'REAGENDADO' || contactResult === 'LIGA_DEPOIS') && rescheduleTo
+        ? rescheduleTo : undefined,
+    });
+  }
+
+  const needsRescheduleDate = contactResult === 'REAGENDADO' || contactResult === 'LIGA_DEPOIS';
+  const canConfirm = !!contactResult && (!needsRescheduleDate || !!rescheduleTo);
+
   const overdueCount = period === 'overdue' ? items.length : 0;
 
   function renderItem(item: ContactSchedule) {
@@ -101,12 +155,9 @@ export function AgendaPage() {
       <Card key={item.id}>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex-1 space-y-1.5">
-            {/* Header: name + status badge */}
             <div className="flex flex-wrap items-center gap-2">
-              <Link
-                to={`/admin/clientes/${item.customerId}`}
-                className="text-sm font-semibold text-neutral-900 hover:text-primary transition"
-              >
+              <Link to={`/admin/clientes/${item.customerId}`}
+                className="text-sm font-semibold text-neutral-900 hover:text-primary transition">
                 {item.customerName}
               </Link>
               <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${STATUS_BADGE[item.customerStatus] ?? 'bg-neutral-100 text-neutral-500'}`}>
@@ -119,21 +170,14 @@ export function AgendaPage() {
               )}
             </div>
 
-            {/* Reason */}
-            {item.reason && (
-              <p className="text-sm text-neutral-600">{item.reason}</p>
-            )}
+            {item.reason && <p className="text-sm text-neutral-600">{item.reason}</p>}
 
-            {/* Date */}
             <p className="text-xs text-neutral-400">
-              {period === 'week' || period === 'month' ? `📅 ${formatLocalDate(item.scheduledDate)}` : ''}
-              {item.customerPhone && (
-                <span className="ml-2">{item.customerPhone}</span>
-              )}
+              {(period === 'week' || period === 'month') ? `📅 ${formatLocalDate(item.scheduledDate)}` : ''}
+              {item.customerPhone && <span className="ml-2">{item.customerPhone}</span>}
             </p>
           </div>
 
-          {/* Actions */}
           <div className="flex flex-wrap items-center gap-1.5 shrink-0">
             {item.customerPhone ? (
               <a href={buildWhatsAppUrl(item.customerPhone, item.customerName)} target="_blank" rel="noreferrer">
@@ -142,18 +186,14 @@ export function AgendaPage() {
             ) : (
               <Button size="sm" variant="ghost" disabled title="Sem telefone">💬</Button>
             )}
-            <Button
-              size="sm"
-              onClick={() => setCompleteId(item.id)}
-            >
-              Registrar
-            </Button>
+            <Button size="sm" onClick={() => openRegister(item)}>Registrar</Button>
+            <Button size="sm" variant="outline"
+              onClick={() => openRegister(item, 'REAGENDADO')}>Reagendar</Button>
             <Link to={`/admin/clientes/${item.customerId}`}>
-              <Button size="sm" variant="outline">Ver Cliente</Button>
+              <Button size="sm" variant="ghost">Ver</Button>
             </Link>
             <Button
-              size="sm"
-              variant="ghost"
+              size="sm" variant="ghost"
               disabled={cancelMutation.isPending}
               onClick={() => cancelMutation.mutate(item.id)}
               className="text-neutral-400"
@@ -193,9 +233,22 @@ export function AgendaPage() {
     <div>
       <h1 className="mb-6 text-2xl font-bold text-neutral-900">Agenda de Contatos</h1>
 
+      {/* Toast de sucesso */}
       {successMsg && (
         <div className="mb-4 rounded-md border border-green-300 bg-green-50 px-4 py-2 text-sm text-green-800">
           {successMsg}
+        </div>
+      )}
+
+      {/* Toast "Comprou" */}
+      {showCreateOrder && (
+        <div className="mb-4 flex items-center gap-3 rounded-md border border-green-300 bg-green-50 px-4 py-3">
+          <span className="text-sm text-green-800 flex-1">
+            🎉 Ótimo! Que tal já criar um pedido para <strong>{showCreateOrder.name}</strong>?
+          </span>
+          <Link to={`/admin/pedidos/novo?customerId=${showCreateOrder.id}`}>
+            <Button size="sm">Criar Pedido</Button>
+          </Link>
         </div>
       )}
 
@@ -234,9 +287,7 @@ export function AgendaPage() {
                     : `Nenhum contato agendado para ${PERIOD_LABELS[period].toLowerCase()}.`}
                 </p>
               ) : (
-                <div className="space-y-3">
-                  {items.map(renderItem)}
-                </div>
+                <div className="space-y-3">{items.map(renderItem)}</div>
               )}
             </>
           )}
@@ -245,33 +296,97 @@ export function AgendaPage() {
 
       {/* Modal: Registrar Contato */}
       <Modal
-        open={!!completeId}
-        onClose={() => setCompleteId(null)}
-        title="Registrar Contato"
+        open={!!registerState}
+        onClose={closeRegisterModal}
+        title={`Registrar Contato${registerState ? ` — ${registerState.customerName}` : ''}`}
       >
-        <div className="space-y-3">
+        <div className="space-y-4">
+          {/* Resultado (obrigatório) */}
+          <div>
+            <label className="mb-2 block text-sm font-medium text-neutral-700">
+              Resultado do contato *
+            </label>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {CONTACT_RESULT_OPTIONS.map((opt) => (
+                <label
+                  key={opt.value}
+                  className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2.5 text-sm transition
+                    ${contactResult === opt.value
+                      ? 'border-primary bg-primary/5 font-medium text-primary'
+                      : 'border-neutral-200 hover:border-neutral-300'}`}
+                >
+                  <input
+                    type="radio"
+                    name="contactResult"
+                    value={opt.value}
+                    checked={contactResult === opt.value}
+                    onChange={() => setContactResult(opt.value)}
+                    className="sr-only"
+                  />
+                  <span>{opt.emoji}</span>
+                  <span>{opt.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Data de reagendamento (condicional) */}
+          {needsRescheduleDate && (
+            <div>
+              <label className="mb-2 block text-sm font-medium text-neutral-700">
+                Reagendar para *
+              </label>
+              <div className="mb-2 flex flex-wrap gap-2">
+                {[
+                  { label: 'Amanhã', days: 1 },
+                  { label: '3 dias', days: 3 },
+                  { label: '1 semana', days: 7 },
+                  { label: '15 dias', days: 15 },
+                ].map((s) => (
+                  <button
+                    key={s.days}
+                    type="button"
+                    onClick={() => setRescheduleTo(addDays(s.days))}
+                    className={`rounded-md border px-3 py-1 text-xs transition
+                      ${rescheduleTo === addDays(s.days)
+                        ? 'border-primary bg-primary text-white'
+                        : 'border-neutral-200 hover:border-neutral-300'}`}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+              <input
+                type="date"
+                value={rescheduleTo}
+                onChange={(e) => setRescheduleTo(e.target.value)}
+                min={addDays(1)}
+                className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+          )}
+
+          {/* Observações */}
           <div>
             <label className="mb-1 block text-sm font-medium text-neutral-700">
               Observações (opcional)
             </label>
             <textarea
               rows={3}
-              value={completeNotes}
-              onChange={(e) => setCompleteNotes(e.target.value)}
+              value={contactNotes}
+              onChange={(e) => setContactNotes(e.target.value)}
               placeholder="Como foi o contato?"
               className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
+
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setCompleteId(null)}>Cancelar</Button>
+            <Button variant="outline" onClick={closeRegisterModal}>Cancelar</Button>
             <Button
-              disabled={completeMutation.isPending}
-              onClick={() => completeId && completeMutation.mutate({
-                id: completeId,
-                notes: completeNotes || undefined,
-              })}
+              disabled={!canConfirm || completeMutation.isPending}
+              onClick={handleConfirmRegister}
             >
-              {completeMutation.isPending ? 'Salvando...' : 'Confirmar contato'}
+              {completeMutation.isPending ? 'Salvando...' : 'Confirmar'}
             </Button>
           </div>
         </div>

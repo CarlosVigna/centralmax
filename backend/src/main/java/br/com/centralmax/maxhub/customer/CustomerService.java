@@ -16,6 +16,8 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -37,7 +39,9 @@ public class CustomerService {
 
     @Transactional(readOnly = true)
     public CustomerResponse getById(UUID id) {
-        return customerMapper.toResponse(findOrThrow(id));
+        Customer customer = findOrThrow(id);
+        List<String> favorites = customerRepository.findFavoriteProducts(id);
+        return customerMapper.toResponseWithFavorites(customer, favorites);
     }
 
     @Transactional
@@ -61,6 +65,11 @@ public class CustomerService {
                 .addressZip(blankToNull(request.addressZip()))
                 .contactCadenceDays(request.contactCadenceDays())
                 .nextContactDate(request.nextContactDate())
+                .commercialPotential(request.commercialPotential())
+                .commercialNotes(blankToNull(request.commercialNotes()))
+                .businessType(blankToNull(request.businessType()))
+                .prospectStatus(request.prospectStatus())
+                .lostReason(blankToNull(request.lostReason()))
                 .build();
 
         Customer saved = customerRepository.save(customer);
@@ -99,6 +108,11 @@ public class CustomerService {
         if (request.nextContactDate() != null) {
             customer.setNextContactDate(request.nextContactDate());
         }
+        customer.setCommercialPotential(request.commercialPotential());
+        customer.setCommercialNotes(blankToNull(request.commercialNotes()));
+        customer.setBusinessType(blankToNull(request.businessType()));
+        customer.setProspectStatus(request.prospectStatus());
+        customer.setLostReason(blankToNull(request.lostReason()));
         // origin is immutable — never updated
 
         Customer saved = customerRepository.save(customer);
@@ -116,6 +130,21 @@ public class CustomerService {
         Customer customer = findOrThrow(id);
         customer.setActive(false);
         customerRepository.save(customer);
+    }
+
+    @Transactional
+    public void updateCustomerStats(UUID customerId) {
+        customerRepository.findById(customerId).ifPresent(customer -> {
+            Object[] stats = customerRepository.findCustomerStats(customerId);
+            if (stats != null && stats.length >= 3) {
+                customer.setAverageTicket(stats[0] != null ? new BigDecimal(stats[0].toString()) : BigDecimal.ZERO);
+                customer.setTotalPurchased(stats[1] != null ? new BigDecimal(stats[1].toString()) : BigDecimal.ZERO);
+                if (stats[2] != null) {
+                    customer.setLastPurchaseDate(LocalDate.parse(stats[2].toString()));
+                }
+            }
+            customerRepository.save(customer);
+        });
     }
 
     private Customer findOrThrow(UUID id) {

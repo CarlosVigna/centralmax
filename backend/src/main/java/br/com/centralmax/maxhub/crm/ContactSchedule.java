@@ -54,6 +54,13 @@ public class ContactSchedule {
     @Column(columnDefinition = "TEXT")
     private String notes;
 
+    @Enumerated(EnumType.STRING)
+    @Column(length = 30)
+    private ContactResult result;
+
+    @Column(name = "rescheduled_to")
+    private LocalDate rescheduledTo;
+
     @Column(name = "completed_at")
     private Instant completedAt;
 

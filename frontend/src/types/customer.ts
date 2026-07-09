@@ -2,6 +2,15 @@ export type CustomerStatus = 'PROSPECT' | 'ATIVO' | 'INATIVO';
 
 export type CustomerType = 'A' | 'B' | 'C';
 
+export type ProspectStatus =
+  | 'NAO_VISITADO'
+  | 'VISITADO'
+  | 'INTERESSADO'
+  | 'ORCAMENTO_ENVIADO'
+  | 'NEGOCIANDO'
+  | 'CONVERTIDO'
+  | 'PERDIDO';
+
 export type CustomerOrigin =
   | 'LANDING'
   | 'WHATSAPP'
@@ -41,6 +50,17 @@ export interface Customer {
   isContactDue: boolean;
   createdAt: string;
   updatedAt: string;
+  // CRM fields
+  commercialPotential: number | null;
+  commercialNotes: string | null;
+  businessType: string | null;
+  prospectStatus: ProspectStatus | null;
+  prospectStatusLabel: string | null;
+  lostReason: string | null;
+  averageTicket: number | null;
+  totalPurchased: number | null;
+  lastPurchaseDate: string | null;
+  favoriteProducts: string[] | null;
 }
 
 export interface CustomerRequest {
@@ -61,7 +81,23 @@ export interface CustomerRequest {
   contactCadenceDays?: number;
   nextContactDate?: string;
   cadenceReason?: string;
+  // CRM fields
+  commercialPotential?: number;
+  commercialNotes?: string;
+  businessType?: string;
+  prospectStatus?: ProspectStatus;
+  lostReason?: string;
 }
+
+export const PROSPECT_STATUS_OPTIONS: { value: ProspectStatus; label: string }[] = [
+  { value: 'NAO_VISITADO', label: 'Não visitado' },
+  { value: 'VISITADO', label: 'Visitado' },
+  { value: 'INTERESSADO', label: 'Interessado' },
+  { value: 'ORCAMENTO_ENVIADO', label: 'Orçamento enviado' },
+  { value: 'NEGOCIANDO', label: 'Negociando' },
+  { value: 'CONVERTIDO', label: 'Convertido' },
+  { value: 'PERDIDO', label: 'Perdido' },
+];
 
 export const ORIGIN_OPTIONS: { value: CustomerOrigin; label: string }[] = [
   { value: 'LANDING', label: 'Landing Page' },
