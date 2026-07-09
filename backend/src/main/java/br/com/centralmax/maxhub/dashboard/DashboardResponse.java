@@ -12,5 +12,10 @@ public record DashboardResponse(
         long contactsToday,
         long overdueContacts,
         BigDecimal saldoMes,
-        BigDecimal aReceber
+        BigDecimal aReceber,
+        long ordersToConfirm,
+        long ordersToSeparate,
+        long overdueFinancial,
+        BigDecimal receivableToday,
+        BigDecimal receivedToday
 ) {}

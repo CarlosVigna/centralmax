@@ -1,5 +1,6 @@
 package br.com.centralmax.maxhub.order.dto;
 
+import br.com.centralmax.maxhub.order.PaymentCondition;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
@@ -18,6 +19,8 @@ public record OrderRequest(
 
         @Size(max = 2000, message = "Observações devem ter no máximo 2000 caracteres")
         String notes,
+
+        PaymentCondition paymentCondition,
 
         @NotEmpty(message = "O pedido deve ter ao menos 1 item")
         @Valid

@@ -33,7 +33,7 @@ public class FinancialEntryController {
     @GetMapping
     public ResponseEntity<PageResponse<FinancialEntryResponse>> list(
             @RequestParam(required = false) FinancialEntryType type,
-            @RequestParam(required = false) FinancialEntryStatus status,
+            @RequestParam(required = false) String status,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @RequestParam(defaultValue = "0") int page,

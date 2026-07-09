@@ -26,6 +26,7 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -60,6 +61,14 @@ public class Order {
     @Column(nullable = false, length = 20)
     private OrderStatus status;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payment_condition", length = 50)
+    @Builder.Default
+    private PaymentCondition paymentCondition = PaymentCondition.NA_ENTREGA;
+
+    @Column(name = "due_date")
+    private LocalDate dueDate;
+
     @Column(columnDefinition = "TEXT")
     private String notes;
 
@@ -90,6 +99,7 @@ public class Order {
         createdAt = now;
         updatedAt = now;
         if (status == null) status = OrderStatus.NOVO;
+        if (paymentCondition == null) paymentCondition = PaymentCondition.NA_ENTREGA;
         active = true;
         if (totalAmount == null) totalAmount = BigDecimal.ZERO;
     }

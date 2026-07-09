@@ -7,7 +7,14 @@ export type OrderStatus =
   | 'CONCLUIDO'
   | 'CANCELADO';
 
-export type PaymentStatus = 'PAGO' | 'PENDENTE' | 'SEM_REGISTRO';
+export type PaymentCondition =
+  | 'A_VISTA'
+  | 'NA_ENTREGA'
+  | 'TRINTA_DIAS'
+  | 'SESSENTA_DIAS'
+  | 'NOVENTA_DIAS';
+
+export type FinancialStatus = 'SEM_TITULO' | 'PENDENTE' | 'PAGO' | 'VENCIDO';
 
 export interface OrderItemResponse {
   id: string;
@@ -28,7 +35,10 @@ export interface OrderResponse {
   customerDisplayPhone: string | null;
   status: OrderStatus;
   statusLabel: string;
-  paymentStatus: PaymentStatus;
+  paymentCondition: PaymentCondition;
+  paymentConditionLabel: string;
+  dueDate: string | null;
+  financialStatus: FinancialStatus;
   notes: string | null;
   totalAmount: number;
   items: OrderItemResponse[];
@@ -48,6 +58,7 @@ export interface OrderRequest {
   customerPhone?: string;
   notes?: string;
   items: OrderItemRequest[];
+  paymentCondition?: PaymentCondition;
 }
 
 export const STATUS_LABELS: Record<OrderStatus, string> = {
@@ -58,6 +69,14 @@ export const STATUS_LABELS: Record<OrderStatus, string> = {
   ENTREGUE: 'Entregue',
   CONCLUIDO: 'Concluído',
   CANCELADO: 'Cancelado',
+};
+
+export const PAYMENT_CONDITION_LABELS: Record<PaymentCondition, string> = {
+  A_VISTA: 'À Vista',
+  NA_ENTREGA: 'Na Entrega',
+  TRINTA_DIAS: '30 dias',
+  SESSENTA_DIAS: '60 dias',
+  NOVENTA_DIAS: '90 dias',
 };
 
 export const STATUS_FLOW: OrderStatus[] = [

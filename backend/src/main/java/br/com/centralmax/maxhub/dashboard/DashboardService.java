@@ -61,8 +61,19 @@ public class DashboardService {
         BigDecimal aReceber = financialEntryRepository.sumByTypeAndStatus(
                 FinancialEntryType.RECEITA, FinancialEntryStatus.PENDENTE);
 
+        // New intelligent dashboard fields
+        long ordersToConfirm = orderRepository.countByStatusAndActive(OrderStatus.NOVO);
+        long ordersToSeparate = orderRepository.countByStatusAndActive(OrderStatus.EM_SEPARACAO);
+        long overdueFinancial = financialEntryRepository.countOverdue(
+                FinancialEntryType.RECEITA, FinancialEntryStatus.PENDENTE, now);
+        BigDecimal receivableToday = financialEntryRepository.sumByTypeAndStatusAndDueDate(
+                FinancialEntryType.RECEITA, FinancialEntryStatus.PENDENTE, now);
+        BigDecimal receivedToday = financialEntryRepository.sumPaidByTypeAndStatusInPeriod(
+                FinancialEntryType.RECEITA, FinancialEntryStatus.PAGO, todayStart, todayEnd);
+
         return new DashboardResponse(activeProducts, totalCustomers, totalOrders,
                 pendingOrders, ordersOutForDelivery, ordersToday, contactsToday, overdueContacts,
-                saldoMes, aReceber);
+                saldoMes, aReceber,
+                ordersToConfirm, ordersToSeparate, overdueFinancial, receivableToday, receivedToday);
     }
 }

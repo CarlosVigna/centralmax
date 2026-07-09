@@ -11,10 +11,15 @@ import {
   STATUS_BADGE_VARIANT,
   STATUS_LABELS,
 } from '../../types/order';
-import type { OrderItemResponse } from '../../types/order';
+import type { FinancialStatus, OrderItemResponse } from '../../types/order';
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleString('pt-BR');
+}
+
+function formatLocalDate(iso: string) {
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}/${y}`;
 }
 
 function formatCurrency(value: number) {
@@ -201,9 +206,19 @@ export function OrderDetailPage() {
               <dd className="text-neutral-900">{formatDate(order.updatedAt)}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-neutral-600">Pagamento</dt>
+              <dt className="text-neutral-600">Condição de pagamento</dt>
+              <dd className="text-neutral-900">{order.paymentConditionLabel}</dd>
+            </div>
+            {order.dueDate && (
+              <div className="flex justify-between">
+                <dt className="text-neutral-600">Vencimento</dt>
+                <dd className="text-neutral-900">{formatLocalDate(order.dueDate)}</dd>
+              </div>
+            )}
+            <div className="flex justify-between">
+              <dt className="text-neutral-600">Financeiro</dt>
               <dd>
-                <PaymentBadge status={order.paymentStatus} />
+                <FinancialStatusBadge status={order.financialStatus} />
               </dd>
             </div>
             <div className="flex justify-between">
@@ -213,6 +228,14 @@ export function OrderDetailPage() {
               </dd>
             </div>
           </dl>
+          {order.financialStatus !== 'SEM_TITULO' && (
+            <Link
+              to="/admin/financeiro"
+              className="mt-3 block text-xs text-primary hover:underline"
+            >
+              Ver no financeiro →
+            </Link>
+          )}
         </Card>
       </div>
 
@@ -270,12 +293,15 @@ export function OrderDetailPage() {
   );
 }
 
-function PaymentBadge({ status }: { status: string }) {
+function FinancialStatusBadge({ status }: { status: FinancialStatus }) {
   if (status === 'PAGO') {
     return <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">Pago</span>;
+  }
+  if (status === 'VENCIDO') {
+    return <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">Vencido</span>;
   }
   if (status === 'PENDENTE') {
     return <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">Pendente</span>;
   }
-  return <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-500">Sem registro</span>;
+  return <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-500">Sem título</span>;
 }

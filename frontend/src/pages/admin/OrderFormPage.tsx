@@ -9,7 +9,8 @@ import { createOrder } from '../../services/orderService';
 import { listCustomers, getCustomer } from '../../services/customerService';
 import { listAdminProducts } from '../../services/productService';
 import type { Customer, CustomerType } from '../../types/customer';
-import type { OrderItemRequest } from '../../types/order';
+import type { OrderItemRequest, PaymentCondition } from '../../types/order';
+import { PAYMENT_CONDITION_LABELS } from '../../types/order';
 
 interface CartItem {
   productId: string;
@@ -56,6 +57,7 @@ export function OrderFormPage() {
   const [discount, setDiscount] = useState(0);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [notes, setNotes] = useState('');
+  const [paymentCondition, setPaymentCondition] = useState<PaymentCondition>('NA_ENTREGA');
 
   const customerType: CustomerType = selectedCustomer?.customerType ?? 'C';
 
@@ -162,7 +164,7 @@ export function OrderFormPage() {
         alert('Selecione um cliente cadastrado ou mude para pedido avulso.');
         return;
       }
-      createMutation.mutate({ customerId: selectedCustomer.id, notes: notes || undefined, items });
+      createMutation.mutate({ customerId: selectedCustomer.id, notes: notes || undefined, items, paymentCondition });
     } else {
       if (!walkinName.trim()) {
         alert('Informe o nome do cliente.');
@@ -173,6 +175,7 @@ export function OrderFormPage() {
         customerPhone: walkinPhone.trim() || undefined,
         notes: notes || undefined,
         items,
+        paymentCondition,
       });
     }
   }
@@ -437,6 +440,27 @@ export function OrderFormPage() {
               Nenhum item adicionado. Selecione um produto acima.
             </p>
           )}
+        </Card>
+
+        {/* ── Condição de pagamento ── */}
+        <Card>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-500">
+            Condição de pagamento
+          </h2>
+          <div className="flex flex-wrap gap-2">
+            {(Object.keys(PAYMENT_CONDITION_LABELS) as PaymentCondition[]).map((key) => (
+              <label key={key} className="flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-neutral-50">
+                <input
+                  type="radio"
+                  name="paymentCondition"
+                  value={key}
+                  checked={paymentCondition === key}
+                  onChange={() => setPaymentCondition(key)}
+                />
+                {PAYMENT_CONDITION_LABELS[key]}
+              </label>
+            ))}
+          </div>
         </Card>
 
         {/* ── Observações ── */}

@@ -54,10 +54,11 @@ function buildWhatsAppUrl(phone: string, order: OrderResponse): string {
   return `https://api.whatsapp.com/send?phone=${br}&text=${encodeURIComponent(msg)}`;
 }
 
-function PaymentBadge({ status }: { status: string }) {
+function FinancialBadge({ status }: { status: string }) {
   if (status === 'PAGO') return <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-700">Pago</span>;
+  if (status === 'VENCIDO') return <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-medium text-red-700">Vencido</span>;
   if (status === 'PENDENTE') return <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700">Pendente</span>;
-  return <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-medium text-neutral-500">Sem reg.</span>;
+  return <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-medium text-neutral-500">Sem título</span>;
 }
 
 export function OrdersPage() {
@@ -128,8 +129,8 @@ export function OrdersPage() {
       ),
     },
     {
-      header: 'Pgto',
-      render: (row: OrderResponse) => <PaymentBadge status={row.paymentStatus} />,
+      header: 'Financeiro',
+      render: (row: OrderResponse) => <FinancialBadge status={row.financialStatus} />,
     },
     {
       header: 'Total',

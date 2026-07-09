@@ -1,5 +1,5 @@
 export type FinancialEntryType = 'RECEITA' | 'DESPESA';
-export type FinancialEntryStatus = 'PENDENTE' | 'PAGO' | 'CANCELADO';
+export type FinancialEntryStatus = 'PENDENTE' | 'PAGO' | 'CANCELADO' | 'VENCIDO';
 
 export interface FinancialEntryResponse {
   id: string;
@@ -31,6 +31,7 @@ export interface FinancialSummaryResponse {
   aReceber: number;
   receitas: number;
   despesas: number;
+  vencidos: number;
 }
 
 export interface FinancialFilters {

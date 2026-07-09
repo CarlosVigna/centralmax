@@ -11,6 +11,11 @@ export interface DashboardStats {
   overdueContacts: number;
   saldoMes: number;
   aReceber: number;
+  ordersToConfirm: number;
+  ordersToSeparate: number;
+  overdueFinancial: number;
+  receivableToday: number;
+  receivedToday: number;
 }
 
 export async function getDashboard(): Promise<DashboardStats> {

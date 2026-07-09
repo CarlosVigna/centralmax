@@ -35,12 +35,20 @@ public class FinancialEntryService {
     private final FinancialEntryMapper mapper;
 
     @Transactional(readOnly = true)
-    public PageResponse<FinancialEntryResponse> list(FinancialEntryType type, FinancialEntryStatus status,
+    public PageResponse<FinancialEntryResponse> list(FinancialEntryType type, String statusParam,
                                                      LocalDate startDate, LocalDate endDate,
                                                      int page, int size) {
+        boolean overdueOnly = "VENCIDO".equalsIgnoreCase(statusParam);
+        FinancialEntryStatus status = null;
+        if (!overdueOnly && statusParam != null && !statusParam.isEmpty()) {
+            try {
+                status = FinancialEntryStatus.valueOf(statusParam.toUpperCase());
+            } catch (IllegalArgumentException ignored) {}
+        }
+
         Pageable pageable = PageRequest.of(page, size, Sort.by("dueDate").descending());
         Page<FinancialEntry> result = financialEntryRepository.findAll(
-                buildSpec(type, status, startDate, endDate), pageable);
+                buildSpec(type, status, startDate, endDate, overdueOnly), pageable);
         return PageResponse.from(result.map(mapper::toResponse));
     }
 
@@ -65,8 +73,10 @@ public class FinancialEntryService {
         BigDecimal saldoMes = receitas.subtract(despesas);
         BigDecimal aReceber = financialEntryRepository.sumByTypeAndStatus(
                 FinancialEntryType.RECEITA, FinancialEntryStatus.PENDENTE);
+        BigDecimal vencidos = financialEntryRepository.sumOverdue(
+                FinancialEntryType.RECEITA, FinancialEntryStatus.PENDENTE, now);
 
-        return new FinancialSummaryResponse(saldoMes, aReceber, receitas, despesas);
+        return new FinancialSummaryResponse(saldoMes, aReceber, receitas, despesas, vencidos);
     }
 
     @Transactional
@@ -110,6 +120,44 @@ public class FinancialEntryService {
         financialEntryRepository.delete(entry);
     }
 
+    @Transactional
+    public void createFromOrder(Order order) {
+        if (financialEntryRepository.existsByOrderId(order.getId())) {
+            return;
+        }
+        String displayName = order.getCustomer() != null
+                ? order.getCustomer().getName()
+                : order.getCustomerName();
+        FinancialEntry entry = FinancialEntry.builder()
+                .type(FinancialEntryType.RECEITA)
+                .status(FinancialEntryStatus.PENDENTE)
+                .description("Pedido " + order.getOrderNumber() + " - " + displayName)
+                .amount(order.getTotalAmount())
+                .dueDate(order.getDueDate())
+                .order(order)
+                .build();
+        financialEntryRepository.save(entry);
+    }
+
+    @Transactional
+    public void markAsPaidByOrderId(UUID orderId) {
+        financialEntryRepository.findFirstByOrderId(orderId).ifPresent(entry -> {
+            if (entry.getStatus() != FinancialEntryStatus.PAGO) {
+                entry.setStatus(FinancialEntryStatus.PAGO);
+                entry.setPaidAt(Instant.now());
+                financialEntryRepository.save(entry);
+            }
+        });
+    }
+
+    @Transactional
+    public void updateDueDateByOrderId(UUID orderId, LocalDate dueDate) {
+        financialEntryRepository.findFirstByOrderId(orderId).ifPresent(entry -> {
+            entry.setDueDate(dueDate);
+            financialEntryRepository.save(entry);
+        });
+    }
+
     private FinancialEntry findOrThrow(UUID id) {
         return financialEntryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Lançamento financeiro não encontrado"));
@@ -122,11 +170,20 @@ public class FinancialEntryService {
     }
 
     private Specification<FinancialEntry> buildSpec(FinancialEntryType type, FinancialEntryStatus status,
-                                                    LocalDate startDate, LocalDate endDate) {
+                                                    LocalDate startDate, LocalDate endDate,
+                                                    boolean overdueOnly) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             if (type != null) predicates.add(cb.equal(root.get("type"), type));
-            if (status != null) predicates.add(cb.equal(root.get("status"), status));
+
+            if (overdueOnly) {
+                predicates.add(cb.equal(root.get("status"), FinancialEntryStatus.PENDENTE));
+                predicates.add(cb.isNotNull(root.get("dueDate")));
+                predicates.add(cb.lessThan(root.get("dueDate"), LocalDate.now()));
+            } else if (status != null) {
+                predicates.add(cb.equal(root.get("status"), status));
+            }
+
             if (startDate != null) predicates.add(cb.greaterThanOrEqualTo(root.get("dueDate"), startDate));
             if (endDate != null) predicates.add(cb.lessThanOrEqualTo(root.get("dueDate"), endDate));
             return cb.and(predicates.toArray(new Predicate[0]));

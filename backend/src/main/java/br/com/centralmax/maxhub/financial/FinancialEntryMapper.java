@@ -6,13 +6,15 @@ import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 
+import java.time.LocalDate;
+
 @Mapper(componentModel = "spring")
 public interface FinancialEntryMapper {
 
     @Mapping(target = "type", expression = "java(entry.getType().name())")
     @Mapping(target = "typeLabel", expression = "java(entry.getType().getLabel())")
-    @Mapping(target = "status", expression = "java(entry.getStatus().name())")
-    @Mapping(target = "statusLabel", expression = "java(entry.getStatus().getLabel())")
+    @Mapping(target = "status", expression = "java(resolveEffectiveStatus(entry))")
+    @Mapping(target = "statusLabel", expression = "java(resolveEffectiveStatusLabel(entry))")
     @Mapping(target = "orderId", expression = "java(entry.getOrder() != null ? entry.getOrder().getId() : null)")
     @Mapping(target = "orderNumber", expression = "java(entry.getOrder() != null ? entry.getOrder().getOrderNumber() : null)")
     FinancialEntryResponse toResponse(FinancialEntry entry);
@@ -32,4 +34,22 @@ public interface FinancialEntryMapper {
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     void updateEntity(FinancialEntryRequest request, @MappingTarget FinancialEntry entry);
+
+    default String resolveEffectiveStatus(FinancialEntry entry) {
+        if (entry.getStatus() == FinancialEntryStatus.PENDENTE
+                && entry.getDueDate() != null
+                && entry.getDueDate().isBefore(LocalDate.now())) {
+            return "VENCIDO";
+        }
+        return entry.getStatus().name();
+    }
+
+    default String resolveEffectiveStatusLabel(FinancialEntry entry) {
+        if (entry.getStatus() == FinancialEntryStatus.PENDENTE
+                && entry.getDueDate() != null
+                && entry.getDueDate().isBefore(LocalDate.now())) {
+            return "Vencido";
+        }
+        return entry.getStatus().getLabel();
+    }
 }

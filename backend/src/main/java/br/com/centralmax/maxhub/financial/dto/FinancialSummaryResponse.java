@@ -6,5 +6,6 @@ public record FinancialSummaryResponse(
         BigDecimal saldoMes,
         BigDecimal aReceber,
         BigDecimal receitas,
-        BigDecimal despesas
+        BigDecimal despesas,
+        BigDecimal vencidos
 ) {}

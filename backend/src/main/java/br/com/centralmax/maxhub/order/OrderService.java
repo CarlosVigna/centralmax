@@ -6,10 +6,7 @@ import br.com.centralmax.maxhub.common.response.PageResponse;
 import br.com.centralmax.maxhub.customer.Customer;
 import br.com.centralmax.maxhub.customer.CustomerRepository;
 import br.com.centralmax.maxhub.customer.CustomerType;
-import br.com.centralmax.maxhub.financial.FinancialEntry;
-import br.com.centralmax.maxhub.financial.FinancialEntryRepository;
-import br.com.centralmax.maxhub.financial.FinancialEntryStatus;
-import br.com.centralmax.maxhub.financial.FinancialEntryType;
+import br.com.centralmax.maxhub.financial.FinancialEntryService;
 import br.com.centralmax.maxhub.order.dto.OrderRequest;
 import br.com.centralmax.maxhub.order.dto.OrderResponse;
 import br.com.centralmax.maxhub.order.dto.OrderStatusUpdateRequest;
@@ -49,7 +46,7 @@ public class OrderService {
     private final CustomerRepository customerRepository;
     private final ProductRepository productRepository;
     private final StockMovementRepository stockMovementRepository;
-    private final FinancialEntryRepository financialEntryRepository;
+    private final FinancialEntryService financialEntryService;
     private final OrderMapper orderMapper;
 
     @Transactional(readOnly = true)
@@ -95,6 +92,9 @@ public class OrderService {
             customerPhone = request.customerPhone() != null ? request.customerPhone().trim() : null;
         }
 
+        PaymentCondition paymentCondition = request.paymentCondition() != null
+                ? request.paymentCondition() : PaymentCondition.NA_ENTREGA;
+
         String orderNumber = generateOrderNumber();
 
         Order order = Order.builder()
@@ -105,6 +105,7 @@ public class OrderService {
                 .status(OrderStatus.NOVO)
                 .notes(blankToNull(request.notes()))
                 .totalAmount(BigDecimal.ZERO)
+                .paymentCondition(paymentCondition)
                 .build();
         order = orderRepository.save(order);
 
@@ -164,6 +165,8 @@ public class OrderService {
                 .status(OrderStatus.NOVO)
                 .notes(original.getNotes())
                 .totalAmount(BigDecimal.ZERO)
+                .paymentCondition(original.getPaymentCondition() != null
+                        ? original.getPaymentCondition() : PaymentCondition.NA_ENTREGA)
                 .build();
         copy = orderRepository.save(copy);
 
@@ -216,18 +219,23 @@ public class OrderService {
         Order order = findOrThrow(id);
         validateStatusTransition(order.getStatus(), request.status());
         order.setStatus(request.status());
-        order = orderRepository.save(order);
 
-        if (request.status() == OrderStatus.CONCLUIDO) {
-            FinancialEntry entry = FinancialEntry.builder()
-                    .type(FinancialEntryType.RECEITA)
-                    .status(FinancialEntryStatus.PENDENTE)
-                    .description("Pedido " + order.getOrderNumber())
-                    .amount(order.getTotalAmount())
-                    .dueDate(LocalDate.now())
-                    .order(order)
-                    .build();
-            financialEntryRepository.save(entry);
+        if (request.status() == OrderStatus.CONFIRMADO) {
+            LocalDate dueDate = calculateDueDate(order.getPaymentCondition());
+            order.setDueDate(dueDate);
+            order = orderRepository.save(order);
+            financialEntryService.createFromOrder(order);
+        } else if (request.status() == OrderStatus.ENTREGUE
+                && order.getPaymentCondition() == PaymentCondition.NA_ENTREGA) {
+            LocalDate today = LocalDate.now();
+            order.setDueDate(today);
+            order = orderRepository.save(order);
+            financialEntryService.updateDueDateByOrderId(id, today);
+        } else if (request.status() == OrderStatus.CONCLUIDO) {
+            order = orderRepository.save(order);
+            financialEntryService.markAsPaidByOrderId(id);
+        } else {
+            order = orderRepository.save(order);
         }
 
         return orderMapper.toResponse(order);
@@ -241,6 +249,18 @@ public class OrderService {
         }
         order.setActive(false);
         orderRepository.save(order);
+    }
+
+    private LocalDate calculateDueDate(PaymentCondition condition) {
+        if (condition == null) return null;
+        LocalDate today = LocalDate.now();
+        return switch (condition) {
+            case A_VISTA -> today;
+            case NA_ENTREGA -> null;
+            case TRINTA_DIAS -> today.plusDays(30);
+            case SESSENTA_DIAS -> today.plusDays(60);
+            case NOVENTA_DIAS -> today.plusDays(90);
+        };
     }
 
     private BigDecimal resolvePrice(Product product, CustomerType type) {

@@ -140,7 +140,7 @@ export function FinancialPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-5">
         <SummaryCard
           label="Saldo do Mês"
           value={summary?.saldoMes ?? 0}
@@ -149,6 +149,7 @@ export function FinancialPage() {
         <SummaryCard label="A Receber" value={summary?.aReceber ?? 0} accent="blue" />
         <SummaryCard label="Receitas (mês)" value={summary?.receitas ?? 0} accent="green" />
         <SummaryCard label="Despesas (mês)" value={summary?.despesas ?? 0} accent="red" />
+        <SummaryCard label="Vencidos" value={summary?.vencidos ?? 0} accent="red" />
       </div>
 
       {/* Filters */}
@@ -185,6 +186,7 @@ export function FinancialPage() {
             >
               <option value="">Todos</option>
               <option value="PENDENTE">Pendente</option>
+              <option value="VENCIDO">Vencido</option>
               <option value="PAGO">Pago</option>
               <option value="CANCELADO">Cancelado</option>
             </select>
@@ -267,7 +269,7 @@ export function FinancialPage() {
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      {entry.status === 'PENDENTE' && (
+                      {(entry.status === 'PENDENTE' || entry.status === 'VENCIDO') && (
                         <button
                           onClick={() => payMutation.mutate(entry.id)}
                           disabled={payMutation.isPending}
@@ -276,7 +278,7 @@ export function FinancialPage() {
                           Receber
                         </button>
                       )}
-                      {entry.status !== 'PAGO' && (
+                      {entry.status !== 'PAGO' && entry.status !== 'VENCIDO' && (
                         <button
                           onClick={() => openEdit(entry)}
                           className="rounded bg-neutral-100 px-2 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-200"
@@ -478,9 +480,11 @@ function StatusBadge({ status, label }: { status: FinancialEntryStatus; label: s
   const cls =
     status === 'PAGO'
       ? 'bg-green-100 text-green-700'
-      : status === 'CANCELADO'
-        ? 'bg-neutral-100 text-neutral-500'
-        : 'bg-amber-100 text-amber-700';
+      : status === 'VENCIDO'
+        ? 'bg-red-100 text-red-700'
+        : status === 'CANCELADO'
+          ? 'bg-neutral-100 text-neutral-500'
+          : 'bg-amber-100 text-amber-700';
   return (
     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${cls}`}>{label}</span>
   );

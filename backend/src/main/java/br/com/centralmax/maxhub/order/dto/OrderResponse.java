@@ -1,9 +1,11 @@
 package br.com.centralmax.maxhub.order.dto;
 
 import br.com.centralmax.maxhub.order.OrderStatus;
+import br.com.centralmax.maxhub.order.PaymentCondition;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -15,7 +17,10 @@ public record OrderResponse(
         String customerDisplayPhone,
         OrderStatus status,
         String statusLabel,
-        String paymentStatus,
+        PaymentCondition paymentCondition,
+        String paymentConditionLabel,
+        LocalDate dueDate,
+        String financialStatus,
         String notes,
         BigDecimal totalAmount,
         List<OrderItemResponse> items,

@@ -9,6 +9,7 @@ import org.mapstruct.Mapping;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.List;
 
 @Mapper(componentModel = "spring")
@@ -21,8 +22,10 @@ public interface OrderMapper {
             expression = "java(order.getCustomer() != null ? order.getCustomer().getPhone() : order.getCustomerPhone())")
     @Mapping(target = "statusLabel",
             expression = "java(br.com.centralmax.maxhub.order.dto.OrderResponse.labelOf(order.getStatus()))")
-    @Mapping(target = "paymentStatus",
-            expression = "java(resolvePaymentStatus(order.getFinancialEntries()))")
+    @Mapping(target = "paymentConditionLabel",
+            expression = "java(order.getPaymentCondition() != null ? order.getPaymentCondition().getLabel() : null)")
+    @Mapping(target = "financialStatus",
+            expression = "java(resolveFinancialStatus(order.getFinancialEntries()))")
     OrderResponse toResponse(Order order);
 
     @Mapping(target = "productId", source = "product.id")
@@ -32,11 +35,16 @@ public interface OrderMapper {
             expression = "java(computeFinalUnitPrice(item))")
     OrderItemResponse toItemResponse(OrderItem item);
 
-    default String resolvePaymentStatus(List<FinancialEntry> entries) {
-        if (entries == null || entries.isEmpty()) return "SEM_REGISTRO";
+    default String resolveFinancialStatus(List<FinancialEntry> entries) {
+        if (entries == null || entries.isEmpty()) return "SEM_TITULO";
         boolean hasPaid = entries.stream()
                 .anyMatch(e -> e.getStatus() == FinancialEntryStatus.PAGO);
         if (hasPaid) return "PAGO";
+        boolean isOverdue = entries.stream()
+                .anyMatch(e -> e.getStatus() == FinancialEntryStatus.PENDENTE
+                        && e.getDueDate() != null
+                        && e.getDueDate().isBefore(LocalDate.now()));
+        if (isOverdue) return "VENCIDO";
         return "PENDENTE";
     }
 
