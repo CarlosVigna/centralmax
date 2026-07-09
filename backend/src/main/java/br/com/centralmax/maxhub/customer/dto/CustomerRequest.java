@@ -28,5 +28,26 @@ public record CustomerRequest(
         CustomerOrigin origin,
 
         @Size(max = 2000, message = "Observações devem ter no máximo 2000 caracteres")
-        String notes
+        String notes,
+
+        @Size(max = 255)
+        String addressStreet,
+
+        @Size(max = 20)
+        String addressNumber,
+
+        @Size(max = 100)
+        String addressComplement,
+
+        @Size(max = 100)
+        String addressNeighborhood,
+
+        @Size(max = 100)
+        String addressCity,
+
+        @Size(max = 2)
+        String addressState,
+
+        @Size(max = 10)
+        String addressZip
 ) {}

@@ -158,6 +158,16 @@ public class FinancialEntryService {
         });
     }
 
+    @Transactional
+    public void updateAmountByOrderId(UUID orderId, java.math.BigDecimal amount) {
+        financialEntryRepository.findFirstByOrderId(orderId).ifPresent(entry -> {
+            if (entry.getStatus() == FinancialEntryStatus.PENDENTE) {
+                entry.setAmount(amount);
+                financialEntryRepository.save(entry);
+            }
+        });
+    }
+
     private FinancialEntry findOrThrow(UUID id) {
         return financialEntryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Lançamento financeiro não encontrado"));

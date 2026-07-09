@@ -19,6 +19,14 @@ public record CustomerResponse(
         CustomerOrigin origin,
         String originLabel,
         String notes,
+        String addressStreet,
+        String addressNumber,
+        String addressComplement,
+        String addressNeighborhood,
+        String addressCity,
+        String addressState,
+        String addressZip,
+        String fullAddress,
         Instant createdAt,
         Instant updatedAt
 ) {

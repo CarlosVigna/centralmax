@@ -24,6 +24,8 @@ import { OrderFormPage } from '../pages/admin/OrderFormPage';
 import { FinancialPage } from '../pages/admin/FinancialPage';
 import { UsersPage } from '../pages/admin/UsersPage';
 import { ReportsPage } from '../pages/admin/ReportsPage';
+import { RomaneioPage } from '../pages/admin/RomaneioPage';
+import { DeliveryRoutePage } from '../pages/admin/DeliveryRoutePage';
 
 export function AppRoutes() {
   return (
@@ -54,7 +56,10 @@ export function AppRoutes() {
           <Route path="financeiro" element={<FinancialPage />} />
           <Route path="pedidos" element={<OrdersPage />} />
           <Route path="pedidos/novo" element={<OrderFormPage />} />
+          <Route path="pedidos/:id/editar" element={<OrderFormPage />} />
           <Route path="pedidos/:id" element={<OrderDetailPage />} />
+          <Route path="romaneio" element={<RomaneioPage />} />
+          <Route path="rota-entrega" element={<DeliveryRoutePage />} />
           <Route path="usuarios" element={<UsersPage />} />
           <Route path="relatorios" element={<ReportsPage />} />
         </Route>

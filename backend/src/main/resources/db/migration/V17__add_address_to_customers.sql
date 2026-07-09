@@ -1,0 +1,7 @@
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS address_street VARCHAR(255);
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS address_number VARCHAR(20);
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS address_complement VARCHAR(100);
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS address_neighborhood VARCHAR(100);
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS address_city VARCHAR(100) DEFAULT 'São José do Rio Preto';
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS address_state VARCHAR(2) DEFAULT 'SP';
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS address_zip VARCHAR(10);

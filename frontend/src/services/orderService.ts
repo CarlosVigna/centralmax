@@ -34,6 +34,11 @@ export async function deleteOrder(id: string): Promise<void> {
   await api.delete(`/orders/${id}`);
 }
 
+export async function updateOrder(id: string, request: OrderRequest): Promise<OrderResponse> {
+  const { data } = await api.put<OrderResponse>(`/orders/${id}`, request);
+  return data;
+}
+
 export async function duplicateOrder(id: string): Promise<OrderResponse> {
   const { data } = await api.post<OrderResponse>(`/orders/${id}/duplicate`);
   return data;

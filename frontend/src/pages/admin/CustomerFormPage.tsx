@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
@@ -18,6 +18,13 @@ interface CustomerFormValues {
   status: string;
   origin: string;
   notes: string;
+  addressZip: string;
+  addressStreet: string;
+  addressNumber: string;
+  addressComplement: string;
+  addressNeighborhood: string;
+  addressCity: string;
+  addressState: string;
 }
 
 export function CustomerFormPage() {
@@ -25,6 +32,9 @@ export function CustomerFormPage() {
   const isEditing = Boolean(id);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const numberInputRef = useRef<HTMLInputElement | null>(null);
+  const [cepLoading, setCepLoading] = useState(false);
+  const [cepError, setCepError] = useState('');
 
   const { data: existing, isLoading: loadingCustomer } = useQuery({
     queryKey: ['customer', id],
@@ -32,7 +42,7 @@ export function CustomerFormPage() {
     enabled: isEditing,
   });
 
-  const { register, handleSubmit, reset, formState } = useForm<CustomerFormValues>({
+  const { register, handleSubmit, reset, setValue, watch, formState } = useForm<CustomerFormValues>({
     defaultValues: {
       name: '',
       email: '',
@@ -41,6 +51,13 @@ export function CustomerFormPage() {
       status: 'PROSPECT',
       origin: '',
       notes: '',
+      addressZip: '',
+      addressStreet: '',
+      addressNumber: '',
+      addressComplement: '',
+      addressNeighborhood: '',
+      addressCity: 'São José do Rio Preto',
+      addressState: 'SP',
     },
   });
 
@@ -54,9 +71,43 @@ export function CustomerFormPage() {
         status: existing.status,
         origin: existing.origin,
         notes: existing.notes ?? '',
+        addressZip: existing.addressZip ?? '',
+        addressStreet: existing.addressStreet ?? '',
+        addressNumber: existing.addressNumber ?? '',
+        addressComplement: existing.addressComplement ?? '',
+        addressNeighborhood: existing.addressNeighborhood ?? '',
+        addressCity: existing.addressCity ?? 'São José do Rio Preto',
+        addressState: existing.addressState ?? 'SP',
       });
     }
   }, [existing, reset]);
+
+  async function fetchCep() {
+    const cep = watch('addressZip').replace(/\D/g, '');
+    if (cep.length !== 8) {
+      setCepError('CEP deve ter 8 dígitos.');
+      return;
+    }
+    setCepError('');
+    setCepLoading(true);
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      const data = await res.json();
+      if (data.erro) {
+        setCepError('CEP não encontrado.');
+        return;
+      }
+      setValue('addressStreet', data.logradouro ?? '');
+      setValue('addressNeighborhood', data.bairro ?? '');
+      setValue('addressCity', data.localidade ?? '');
+      setValue('addressState', data.uf ?? '');
+      setTimeout(() => numberInputRef.current?.focus(), 50);
+    } catch {
+      setCepError('Erro ao consultar CEP.');
+    } finally {
+      setCepLoading(false);
+    }
+  }
 
   const saveMutation = useMutation({
     mutationFn: (request: CustomerRequest) =>
@@ -77,6 +128,13 @@ export function CustomerFormPage() {
       status: values.status as CustomerRequest['status'],
       origin: values.origin as CustomerRequest['origin'],
       notes: values.notes.trim() || undefined,
+      addressZip: values.addressZip.trim() || undefined,
+      addressStreet: values.addressStreet.trim() || undefined,
+      addressNumber: values.addressNumber.trim() || undefined,
+      addressComplement: values.addressComplement.trim() || undefined,
+      addressNeighborhood: values.addressNeighborhood.trim() || undefined,
+      addressCity: values.addressCity.trim() || undefined,
+      addressState: values.addressState.trim() || undefined,
     };
     saveMutation.mutate(request);
   }
@@ -87,6 +145,10 @@ export function CustomerFormPage() {
   ];
 
   const statusSelectOptions = STATUS_OPTIONS.map((o) => ({ value: o.value, label: o.label }));
+
+  const { ref: numberFormRef, ...numberRestProps } = register('addressNumber', {
+    maxLength: { value: 20, message: 'Máximo 20 caracteres' },
+  });
 
   if (isEditing && loadingCustomer) {
     return <p className="text-sm text-neutral-600">Carregando cliente...</p>;
@@ -189,6 +251,109 @@ export function CustomerFormPage() {
           {formState.errors.notes && (
             <p className="text-xs text-danger">{formState.errors.notes.message}</p>
           )}
+        </div>
+
+        {/* ── Endereço ── */}
+        <div className="rounded-lg border border-neutral-200 p-4">
+          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-neutral-500">
+            Endereço
+          </h2>
+
+          <div className="flex items-end gap-2 mb-4">
+            <div className="flex-1">
+              <Input
+                label="CEP"
+                id="addressZip"
+                placeholder="00000-000"
+                {...register('addressZip', {
+                  maxLength: { value: 10, message: 'Máximo 10 caracteres' },
+                })}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); fetchCep(); } }}
+              />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={cepLoading}
+              onClick={fetchCep}
+              className="mb-0.5"
+            >
+              {cepLoading ? 'Buscando...' : 'Buscar'}
+            </Button>
+          </div>
+          {cepError && <p className="mb-3 text-xs text-danger">{cepError}</p>}
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 mb-4">
+            <div className="sm:col-span-2">
+              <Input
+                label="Rua / Logradouro"
+                id="addressStreet"
+                placeholder="Rua das Flores"
+                {...register('addressStreet', {
+                  maxLength: { value: 255, message: 'Máximo 255 caracteres' },
+                })}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-neutral-900">Número</label>
+              <input
+                id="addressNumber"
+                placeholder="123"
+                className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-light"
+                ref={(el) => {
+                  numberFormRef(el);
+                  numberInputRef.current = el;
+                }}
+                {...numberRestProps}
+              />
+              {formState.errors.addressNumber && (
+                <p className="mt-1 text-xs text-danger">{formState.errors.addressNumber.message}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 mb-4">
+            <Input
+              label="Complemento"
+              id="addressComplement"
+              placeholder="Apto 1, Bloco B..."
+              {...register('addressComplement', {
+                maxLength: { value: 100, message: 'Máximo 100 caracteres' },
+              })}
+            />
+            <Input
+              label="Bairro"
+              id="addressNeighborhood"
+              placeholder="Centro"
+              {...register('addressNeighborhood', {
+                maxLength: { value: 100, message: 'Máximo 100 caracteres' },
+              })}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="sm:col-span-2">
+              <Input
+                label="Cidade"
+                id="addressCity"
+                placeholder="São José do Rio Preto"
+                {...register('addressCity', {
+                  maxLength: { value: 100, message: 'Máximo 100 caracteres' },
+                })}
+              />
+            </div>
+            <div>
+              <Input
+                label="Estado"
+                id="addressState"
+                placeholder="SP"
+                {...register('addressState', {
+                  maxLength: { value: 2, message: 'Máximo 2 caracteres' },
+                })}
+              />
+            </div>
+          </div>
         </div>
 
         {saveMutation.isError && (

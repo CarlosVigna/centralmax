@@ -28,6 +28,12 @@ public interface OrderRepository extends JpaRepository<Order, UUID>, JpaSpecific
 
     List<Order> findTop5ByStatusAndActiveOrderByCreatedAtDesc(OrderStatus status, boolean active);
 
+    @Query("SELECT DISTINCT o FROM Order o LEFT JOIN FETCH o.items i LEFT JOIN FETCH i.product p WHERE o.status IN :statuses AND o.active = true ORDER BY o.createdAt ASC")
+    List<Order> findAllByStatusInWithItems(@Param("statuses") List<OrderStatus> statuses);
+
+    @Query("SELECT DISTINCT o FROM Order o LEFT JOIN FETCH o.customer c LEFT JOIN FETCH o.items i LEFT JOIN FETCH i.product WHERE o.status IN :statuses AND o.createdAt >= :start AND o.createdAt < :end AND o.active = true ORDER BY o.createdAt ASC")
+    List<Order> findDeliveryOrders(@Param("statuses") List<OrderStatus> statuses, @Param("start") java.time.Instant start, @Param("end") java.time.Instant end);
+
     // ── Report queries ────────────────────────────────────────────────
 
     @Query("SELECT COALESCE(SUM(o.totalAmount), 0) FROM Order o " +

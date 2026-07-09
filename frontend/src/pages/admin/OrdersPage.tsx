@@ -152,12 +152,20 @@ export function OrdersPage() {
         const next = nextStatus(row.status);
         const canCancel = row.status !== 'CONCLUIDO' && row.status !== 'CANCELADO';
         const canDelete = row.status === 'NOVO' || row.status === 'CANCELADO';
+        const canEdit = row.status === 'NOVO' || row.status === 'CONFIRMADO';
         const hasPhone = Boolean(row.customerDisplayPhone);
         return (
           <div className="flex flex-wrap gap-1.5">
             <Link to={`/admin/pedidos/${row.id}`}>
               <Button size="sm" variant="ghost">Ver</Button>
             </Link>
+            {canEdit ? (
+              <Link to={`/admin/pedidos/${row.id}/editar`}>
+                <Button size="sm" variant="ghost">Editar</Button>
+              </Link>
+            ) : (
+              <Button size="sm" variant="ghost" disabled title="Só é possível editar pedidos NOVO ou CONFIRMADO">Editar</Button>
+            )}
             {hasPhone ? (
               <a href={buildWhatsAppUrl(row.customerDisplayPhone!, row)} target="_blank" rel="noreferrer">
                 <Button size="sm" variant="ghost">💬</Button>

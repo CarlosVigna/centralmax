@@ -50,6 +50,13 @@ public class CustomerService {
                 .status(request.status() != null ? request.status() : CustomerStatus.PROSPECT)
                 .origin(request.origin())
                 .notes(blankToNull(request.notes()))
+                .addressStreet(blankToNull(request.addressStreet()))
+                .addressNumber(blankToNull(request.addressNumber()))
+                .addressComplement(blankToNull(request.addressComplement()))
+                .addressNeighborhood(blankToNull(request.addressNeighborhood()))
+                .addressCity(blankToNull(request.addressCity()))
+                .addressState(blankToNull(request.addressState()))
+                .addressZip(blankToNull(request.addressZip()))
                 .build();
 
         return customerMapper.toResponse(customerRepository.save(customer));
@@ -66,6 +73,13 @@ public class CustomerService {
         customer.setDocument(blankToNull(request.document()));
         customer.setStatus(request.status() != null ? request.status() : customer.getStatus());
         customer.setNotes(blankToNull(request.notes()));
+        customer.setAddressStreet(blankToNull(request.addressStreet()));
+        customer.setAddressNumber(blankToNull(request.addressNumber()));
+        customer.setAddressComplement(blankToNull(request.addressComplement()));
+        customer.setAddressNeighborhood(blankToNull(request.addressNeighborhood()));
+        customer.setAddressCity(blankToNull(request.addressCity()));
+        customer.setAddressState(blankToNull(request.addressState()));
+        customer.setAddressZip(blankToNull(request.addressZip()));
         // origin is immutable — never updated
 
         return customerMapper.toResponse(customerRepository.save(customer));

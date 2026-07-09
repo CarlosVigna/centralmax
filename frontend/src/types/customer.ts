@@ -26,6 +26,14 @@ export interface Customer {
   origin: CustomerOrigin;
   originLabel: string;
   notes: string | null;
+  addressStreet: string | null;
+  addressNumber: string | null;
+  addressComplement: string | null;
+  addressNeighborhood: string | null;
+  addressCity: string | null;
+  addressState: string | null;
+  addressZip: string | null;
+  fullAddress: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -38,6 +46,13 @@ export interface CustomerRequest {
   status?: CustomerStatus;
   origin: CustomerOrigin;
   notes?: string;
+  addressStreet?: string;
+  addressNumber?: string;
+  addressComplement?: string;
+  addressNeighborhood?: string;
+  addressCity?: string;
+  addressState?: string;
+  addressZip?: string;
 }
 
 export const ORIGIN_OPTIONS: { value: CustomerOrigin; label: string }[] = [

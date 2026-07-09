@@ -104,6 +104,8 @@ const NAV_GROUPS: NavGroup[] = [
       { to: '/admin', label: 'Dashboard', icon: <IconDashboard /> },
       { to: '/admin/pedidos', label: 'Pedidos', icon: <IconOrders /> },
       { to: '/admin/expedicao', label: 'Expedição', showBadge: true, icon: <IconTruck /> },
+      { to: '/admin/romaneio', label: 'Romaneio', icon: <IconBox /> },
+      { to: '/admin/rota-entrega', label: 'Rota de Entrega', icon: <IconTruck /> },
       { to: '/admin/agenda', label: 'Agenda', icon: <IconCalendar /> },
     ],
   },

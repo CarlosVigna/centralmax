@@ -133,6 +133,7 @@ export function OrderDetailPage() {
 
   const next = nextStatus(order.status);
   const canCancel = order.status !== 'CONCLUIDO' && order.status !== 'CANCELADO';
+  const canEdit = order.status === 'NOVO' || order.status === 'CONFIRMADO';
   const hasPhone = Boolean(order.customerDisplayPhone);
 
   return (
@@ -147,6 +148,15 @@ export function OrderDetailPage() {
         <Badge variant={STATUS_BADGE_VARIANT[order.status]}>{order.statusLabel}</Badge>
 
         <div className="ml-auto flex flex-wrap gap-2">
+          {canEdit ? (
+            <Link to={`/admin/pedidos/${order.id}/editar`}>
+              <Button variant="outline" size="sm">Editar pedido</Button>
+            </Link>
+          ) : (
+            <Button variant="outline" size="sm" disabled title="Só é possível editar pedidos com status NOVO ou CONFIRMADO">
+              Editar pedido
+            </Button>
+          )}
           {hasPhone ? (
             <a
               href={buildWhatsAppUrl(order.customerDisplayPhone!, order)}

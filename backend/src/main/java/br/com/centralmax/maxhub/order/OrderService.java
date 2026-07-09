@@ -31,6 +31,7 @@ import java.time.LocalDate;
 import java.time.Year;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -152,6 +153,81 @@ public class OrderService {
     }
 
     @Transactional
+    public OrderResponse update(UUID id, OrderRequest request) {
+        Order order = findOrThrow(id);
+        if (order.getStatus() != OrderStatus.NOVO && order.getStatus() != OrderStatus.CONFIRMADO) {
+            throw new BusinessException("Só é possível editar pedidos com status NOVO ou CONFIRMADO");
+        }
+
+        Customer customer = null;
+        String customerName;
+        String customerPhone;
+        CustomerType customerType = CustomerType.C;
+
+        if (request.customerId() != null) {
+            customer = customerRepository.findById(request.customerId())
+                    .filter(Customer::isActive)
+                    .orElseThrow(() -> new ResourceNotFoundException("Cliente não encontrado"));
+            customerName = customer.getName();
+            customerPhone = customer.getPhone();
+            customerType = customer.getCustomerType() != null ? customer.getCustomerType() : CustomerType.C;
+        } else {
+            if (request.customerName() == null || request.customerName().isBlank()) {
+                throw new BusinessException("Nome do cliente é obrigatório para pedido avulso");
+            }
+            customerName = request.customerName().trim();
+            customerPhone = request.customerPhone() != null ? request.customerPhone().trim() : null;
+        }
+
+        order.setCustomer(customer);
+        order.setCustomerName(customerName);
+        order.setCustomerPhone(customerPhone);
+        order.setNotes(blankToNull(request.notes()));
+
+        if (request.paymentCondition() != null) {
+            order.setPaymentCondition(request.paymentCondition());
+        }
+
+        // Clear and rebuild items
+        order.getItems().clear();
+        order = orderRepository.save(order);
+
+        BigDecimal total = BigDecimal.ZERO;
+        for (var itemReq : request.items()) {
+            Product product = productRepository.findById(itemReq.productId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Produto " + itemReq.productId() + " não encontrado"));
+
+            BigDecimal unitPrice = resolvePrice(product, customerType);
+            BigDecimal discount = itemReq.discountPercent() != null
+                    ? itemReq.discountPercent() : BigDecimal.ZERO;
+            BigDecimal finalPrice = applyDiscount(unitPrice, discount);
+            BigDecimal subtotal = finalPrice.multiply(BigDecimal.valueOf(itemReq.quantity()));
+
+            OrderItem item = OrderItem.builder()
+                    .order(order)
+                    .product(product)
+                    .productName(product.getName())
+                    .quantity(itemReq.quantity())
+                    .unitPrice(unitPrice)
+                    .discountPercent(discount)
+                    .subtotal(subtotal)
+                    .build();
+            order.getItems().add(item);
+            total = total.add(subtotal);
+        }
+
+        order.setTotalAmount(total);
+        order = orderRepository.save(order);
+
+        if (order.getStatus() == OrderStatus.CONFIRMADO) {
+            financialEntryService.updateAmountByOrderId(id, total);
+        }
+
+        return orderMapper.toResponse(order);
+    }
+
+    @Transactional
     public OrderResponse duplicate(UUID id) {
         Order original = findOrThrow(id);
 
@@ -249,6 +325,135 @@ public class OrderService {
         }
         order.setActive(false);
         orderRepository.save(order);
+    }
+
+    @Transactional(readOnly = true)
+    public br.com.centralmax.maxhub.order.dto.PurchaseListResponse getPurchaseList(List<OrderStatus> statuses) {
+        if (statuses == null || statuses.isEmpty()) {
+            statuses = List.of(OrderStatus.CONFIRMADO, OrderStatus.EM_SEPARACAO);
+        }
+        List<Order> orders = orderRepository.findAllByStatusInWithItems(statuses);
+
+        // Aggregate items by productId using insertion-ordered map
+        Map<UUID, List<Object[]>> productMap = new java.util.LinkedHashMap<>();
+        Map<UUID, String[]> productMeta = new java.util.LinkedHashMap<>();
+        List<String> orderNumbers = new ArrayList<>();
+
+        for (Order order : orders) {
+            orderNumbers.add(order.getOrderNumber());
+            String customerName = order.getCustomer() != null
+                    ? order.getCustomer().getName() : order.getCustomerName();
+            for (OrderItem item : order.getItems()) {
+                UUID productId = item.getProduct().getId();
+                productMeta.putIfAbsent(productId, new String[]{
+                        item.getProductName(), item.getProduct().getSku()
+                });
+                productMap.computeIfAbsent(productId, k -> new ArrayList<>())
+                        .add(new Object[]{order.getOrderNumber(), customerName, item.getQuantity()});
+            }
+        }
+
+        List<br.com.centralmax.maxhub.order.dto.PurchaseListItemResponse> items = productMap.entrySet().stream()
+                .map(e -> {
+                    UUID pid = e.getKey();
+                    String[] meta = productMeta.get(pid);
+                    int total = e.getValue().stream().mapToInt(r -> (int) r[2]).sum();
+                    List<br.com.centralmax.maxhub.order.dto.PurchaseListOrderRef> refs = e.getValue().stream()
+                            .map(r -> new br.com.centralmax.maxhub.order.dto.PurchaseListOrderRef(
+                                    (String) r[0], (String) r[1], (int) r[2]))
+                            .toList();
+                    return new br.com.centralmax.maxhub.order.dto.PurchaseListItemResponse(
+                            pid, meta[0], meta[1], total, refs);
+                })
+                .toList();
+
+        return new br.com.centralmax.maxhub.order.dto.PurchaseListResponse(
+                java.time.Instant.now(), orderNumbers, items);
+    }
+
+    @Transactional(readOnly = true)
+    public br.com.centralmax.maxhub.order.dto.DeliveryRouteResponse getDeliveryRoute(
+            java.time.LocalDate date, List<OrderStatus> statuses) {
+        if (statuses == null || statuses.isEmpty()) {
+            statuses = List.of(OrderStatus.SAIU_ENTREGA);
+        }
+        if (date == null) {
+            date = java.time.LocalDate.now();
+        }
+        java.time.Instant start = date.atStartOfDay(java.time.ZoneOffset.UTC).toInstant();
+        java.time.Instant end = date.plusDays(1).atStartOfDay(java.time.ZoneOffset.UTC).toInstant();
+
+        List<Order> orders = orderRepository.findDeliveryOrders(statuses, start, end);
+
+        List<br.com.centralmax.maxhub.order.dto.DeliveryRouteStop> stops = new ArrayList<>();
+        for (Order order : orders) {
+            br.com.centralmax.maxhub.customer.Customer c = order.getCustomer();
+            String address = null;
+            String fullAddress = null;
+
+            if (c != null && c.getAddressStreet() != null && !c.getAddressStreet().isBlank()) {
+                String city = (c.getAddressCity() != null && !c.getAddressCity().isBlank())
+                        ? c.getAddressCity() : "São José do Rio Preto";
+                String state = (c.getAddressState() != null && !c.getAddressState().isBlank())
+                        ? c.getAddressState() : "SP";
+
+                StringBuilder displaySb = new StringBuilder(c.getAddressStreet());
+                if (c.getAddressNumber() != null) displaySb.append(", ").append(c.getAddressNumber());
+                if (c.getAddressNeighborhood() != null) displaySb.append(" - ").append(c.getAddressNeighborhood());
+                displaySb.append(", ").append(city).append("/").append(state);
+                address = displaySb.toString();
+
+                StringBuilder mapsSb = new StringBuilder(c.getAddressStreet());
+                if (c.getAddressNumber() != null) mapsSb.append(", ").append(c.getAddressNumber());
+                if (c.getAddressNeighborhood() != null) mapsSb.append(", ").append(c.getAddressNeighborhood());
+                mapsSb.append(", ").append(city).append(", ").append(state);
+                fullAddress = mapsSb.toString();
+            } else if (c != null && c.getAddress() != null) {
+                address = c.getAddress();
+                fullAddress = c.getAddress();
+            }
+
+            String itemsSummary = order.getItems().stream()
+                    .map(i -> i.getQuantity() + "x " + i.getProductName())
+                    .collect(java.util.stream.Collectors.joining(", "));
+
+            String phone = c != null ? c.getPhone() : order.getCustomerPhone();
+            String name = c != null ? c.getName() : order.getCustomerName();
+
+            stops.add(new br.com.centralmax.maxhub.order.dto.DeliveryRouteStop(
+                    order.getOrderNumber(), name, phone, address, fullAddress, itemsSummary));
+        }
+
+        String googleMapsUrl = buildGoogleMapsUrl(stops);
+        return new br.com.centralmax.maxhub.order.dto.DeliveryRouteResponse(date, stops, googleMapsUrl);
+    }
+
+    private String buildGoogleMapsUrl(
+            List<br.com.centralmax.maxhub.order.dto.DeliveryRouteStop> stops) {
+        List<String> addresses = stops.stream()
+                .filter(s -> s.fullAddress() != null)
+                .map(br.com.centralmax.maxhub.order.dto.DeliveryRouteStop::fullAddress)
+                .toList();
+        if (addresses.isEmpty()) return null;
+
+        String origin = "São José do Rio Preto, SP";
+        String destination = encode(addresses.get(addresses.size() - 1));
+
+        StringBuilder sb = new StringBuilder("https://www.google.com/maps/dir/?api=1");
+        sb.append("&origin=").append(encode(origin));
+        sb.append("&destination=").append(destination);
+        if (addresses.size() > 1) {
+            String waypoints = addresses.subList(0, addresses.size() - 1).stream()
+                    .map(this::encode)
+                    .collect(java.util.stream.Collectors.joining("|"));
+            sb.append("&waypoints=").append(waypoints);
+        }
+        sb.append("&travelmode=driving");
+        return sb.toString();
+    }
+
+    private String encode(String s) {
+        return java.net.URLEncoder.encode(s, java.nio.charset.StandardCharsets.UTF_8);
     }
 
     private LocalDate calculateDueDate(PaymentCondition condition) {

@@ -1,11 +1,11 @@
 import axios from 'axios';
 import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useNavigate, useSearchParams, useParams, Link } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
-import { createOrder } from '../../services/orderService';
+import { createOrder, updateOrder, getOrder } from '../../services/orderService';
 import { listCustomers, getCustomer } from '../../services/customerService';
 import { listAdminProducts } from '../../services/productService';
 import type { Customer, CustomerType } from '../../types/customer';
@@ -43,6 +43,8 @@ function applyDiscount(price: number, discount: number): number {
 export function OrderFormPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { id: editId } = useParams<{ id: string }>();
+  const isEdit = !!editId;
   const preloadCustomerId = searchParams.get('customerId');
 
   const [customerMode, setCustomerMode] = useState<'registered' | 'walkin'>('registered');
@@ -58,21 +60,24 @@ export function OrderFormPage() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [notes, setNotes] = useState('');
   const [paymentCondition, setPaymentCondition] = useState<PaymentCondition>('NA_ENTREGA');
+  const [editOrderNumber, setEditOrderNumber] = useState<string | null>(null);
+  const [initialized, setInitialized] = useState(false);
 
   const customerType: CustomerType = selectedCustomer?.customerType ?? 'C';
 
-  // Pre-load customer from URL param
+  // Load existing order for edit mode
+  const { data: existingOrder } = useQuery({
+    queryKey: ['order', editId],
+    queryFn: () => getOrder(editId!),
+    enabled: isEdit,
+  });
+
+  // Pre-load customer from URL param (create mode only)
   const { data: preloadedCustomer } = useQuery({
     queryKey: ['customer', preloadCustomerId],
     queryFn: () => getCustomer(preloadCustomerId!),
-    enabled: !!preloadCustomerId && !selectedCustomer,
+    enabled: !!preloadCustomerId && !selectedCustomer && !isEdit,
   });
-
-  useEffect(() => {
-    if (preloadedCustomer && !selectedCustomer) {
-      setSelectedCustomer(preloadedCustomer);
-    }
-  }, [preloadedCustomer, selectedCustomer]);
 
   const { data: customerResults } = useQuery({
     queryKey: ['customers-search', customerSearch],
@@ -89,10 +94,55 @@ export function OrderFormPage() {
   const products = productsData?.content ?? [];
   const selectedProduct = products.find((p) => p.id === selectedProductId);
 
+  // Populate form from existing order (edit mode)
+  useEffect(() => {
+    if (!existingOrder || initialized) return;
+    setEditOrderNumber(existingOrder.orderNumber ?? null);
+    setNotes(existingOrder.notes ?? '');
+    setPaymentCondition(existingOrder.paymentCondition ?? 'NA_ENTREGA');
+
+    if (existingOrder.customerId) {
+      setCustomerMode('registered');
+      getCustomer(existingOrder.customerId).then((c) => setSelectedCustomer(c)).catch(() => {});
+    } else {
+      setCustomerMode('walkin');
+      setWalkinName(existingOrder.customerDisplayName ?? '');
+      setWalkinPhone(existingOrder.customerDisplayPhone ?? '');
+    }
+
+    if (existingOrder.items) {
+      setCartItems(
+        existingOrder.items.map((item) => ({
+          productId: item.productId,
+          productName: item.productName,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          discountPercent: item.discountPercent ?? 0,
+        })),
+      );
+    }
+    setInitialized(true);
+  }, [existingOrder, initialized]);
+
+  // Populate from URL param (create mode)
+  useEffect(() => {
+    if (preloadedCustomer && !selectedCustomer && !isEdit) {
+      setSelectedCustomer(preloadedCustomer);
+    }
+  }, [preloadedCustomer, selectedCustomer, isEdit]);
+
   const createMutation = useMutation({
     mutationFn: createOrder,
     onSuccess: (order) => navigate(`/admin/pedidos/${order.id}`),
   });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, request }: { id: string; request: Parameters<typeof updateOrder>[1] }) =>
+      updateOrder(id, request),
+    onSuccess: (order) => navigate(`/admin/pedidos/${order.id}`),
+  });
+
+  const mutation = isEdit ? updateMutation : createMutation;
 
   function addItem() {
     if (!selectedProduct || quantity < 1) return;
@@ -164,24 +214,38 @@ export function OrderFormPage() {
         alert('Selecione um cliente cadastrado ou mude para pedido avulso.');
         return;
       }
-      createMutation.mutate({ customerId: selectedCustomer.id, notes: notes || undefined, items, paymentCondition });
+      const payload = { customerId: selectedCustomer.id, notes: notes || undefined, items, paymentCondition };
+      if (isEdit) {
+        updateMutation.mutate({ id: editId!, request: payload });
+      } else {
+        createMutation.mutate(payload);
+      }
     } else {
       if (!walkinName.trim()) {
         alert('Informe o nome do cliente.');
         return;
       }
-      createMutation.mutate({
+      const payload = {
         customerName: walkinName.trim(),
         customerPhone: walkinPhone.trim() || undefined,
         notes: notes || undefined,
         items,
         paymentCondition,
-      });
+      };
+      if (isEdit) {
+        updateMutation.mutate({ id: editId!, request: payload });
+      } else {
+        createMutation.mutate(payload);
+      }
     }
   }
 
   const fmtCurrency = (v: number) =>
     v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+  const pageTitle = isEdit
+    ? `Editar Pedido${editOrderNumber ? ` #${editOrderNumber}` : ''}`
+    : 'Novo pedido';
 
   return (
     <div>
@@ -189,7 +253,7 @@ export function OrderFormPage() {
         <Link to="/admin/pedidos" className="text-sm text-primary hover:underline">
           ← Pedidos
         </Link>
-        <h1 className="text-2xl font-bold text-neutral-900">Novo pedido</h1>
+        <h1 className="text-2xl font-bold text-neutral-900">{pageTitle}</h1>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -477,11 +541,11 @@ export function OrderFormPage() {
           />
         </Card>
 
-        {createMutation.isError && (
+        {mutation.isError && (
           <p className="text-sm text-danger">
-            {axios.isAxiosError(createMutation.error)
-              ? (createMutation.error.response?.data?.message ?? 'Erro ao criar pedido.')
-              : 'Erro ao criar pedido.'}
+            {axios.isAxiosError(mutation.error)
+              ? (mutation.error.response?.data?.message ?? 'Erro ao salvar pedido.')
+              : 'Erro ao salvar pedido.'}
           </p>
         )}
 
@@ -493,9 +557,9 @@ export function OrderFormPage() {
           </Link>
           <Button
             type="submit"
-            disabled={cartItems.length === 0 || createMutation.isPending}
+            disabled={cartItems.length === 0 || mutation.isPending}
           >
-            {createMutation.isPending ? 'Salvando...' : 'Criar pedido'}
+            {mutation.isPending ? 'Salvando...' : isEdit ? 'Salvar alterações' : 'Criar pedido'}
           </Button>
         </div>
       </form>

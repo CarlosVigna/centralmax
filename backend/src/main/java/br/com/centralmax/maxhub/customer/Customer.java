@@ -47,6 +47,27 @@ public class Customer {
     @Column(length = 255)
     private String address;
 
+    @Column(name = "address_street", length = 255)
+    private String addressStreet;
+
+    @Column(name = "address_number", length = 20)
+    private String addressNumber;
+
+    @Column(name = "address_complement", length = 100)
+    private String addressComplement;
+
+    @Column(name = "address_neighborhood", length = 100)
+    private String addressNeighborhood;
+
+    @Column(name = "address_city", length = 100)
+    private String addressCity;
+
+    @Column(name = "address_state", length = 2)
+    private String addressState;
+
+    @Column(name = "address_zip", length = 10)
+    private String addressZip;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "customer_type", nullable = false, columnDefinition = "varchar(1)")
     private CustomerType customerType;
