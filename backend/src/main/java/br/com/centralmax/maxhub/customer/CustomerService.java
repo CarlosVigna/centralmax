@@ -3,6 +3,7 @@ package br.com.centralmax.maxhub.customer;
 import br.com.centralmax.maxhub.common.exception.DuplicateResourceException;
 import br.com.centralmax.maxhub.common.exception.ResourceNotFoundException;
 import br.com.centralmax.maxhub.common.response.PageResponse;
+import br.com.centralmax.maxhub.crm.ContactScheduleService;
 import br.com.centralmax.maxhub.customer.dto.CustomerRequest;
 import br.com.centralmax.maxhub.customer.dto.CustomerResponse;
 import jakarta.persistence.criteria.Predicate;
@@ -25,6 +26,7 @@ public class CustomerService {
 
     private final CustomerRepository customerRepository;
     private final CustomerMapper customerMapper;
+    private final ContactScheduleService contactScheduleService;
 
     @Transactional(readOnly = true)
     public PageResponse<CustomerResponse> list(String search, CustomerStatus status, CustomerOrigin origin, int page, int size) {
@@ -57,15 +59,28 @@ public class CustomerService {
                 .addressCity(blankToNull(request.addressCity()))
                 .addressState(blankToNull(request.addressState()))
                 .addressZip(blankToNull(request.addressZip()))
+                .contactCadenceDays(request.contactCadenceDays())
+                .nextContactDate(request.nextContactDate())
                 .build();
 
-        return customerMapper.toResponse(customerRepository.save(customer));
+        Customer saved = customerRepository.save(customer);
+        if (saved.getContactCadenceDays() != null) {
+            contactScheduleService.generateNextSchedule(saved);
+        } else if (saved.getNextContactDate() != null) {
+            contactScheduleService.createManualSchedule(saved.getId(),
+                    new br.com.centralmax.maxhub.crm.dto.ContactScheduleRequest(
+                            saved.getNextContactDate(),
+                            blankToNull(request.cadenceReason()) != null ? request.cadenceReason() : "Contato agendado"));
+        }
+        return customerMapper.toResponse(saved);
     }
 
     @Transactional
     public CustomerResponse update(UUID id, CustomerRequest request) {
         Customer customer = findOrThrow(id);
         validateEmailUniqueness(request.email(), id);
+
+        Integer oldCadence = customer.getContactCadenceDays();
 
         customer.setName(request.name().trim());
         customer.setEmail(normaliseEmail(request.email()));
@@ -80,9 +95,20 @@ public class CustomerService {
         customer.setAddressCity(blankToNull(request.addressCity()));
         customer.setAddressState(blankToNull(request.addressState()));
         customer.setAddressZip(blankToNull(request.addressZip()));
+        customer.setContactCadenceDays(request.contactCadenceDays());
+        if (request.nextContactDate() != null) {
+            customer.setNextContactDate(request.nextContactDate());
+        }
         // origin is immutable — never updated
 
-        return customerMapper.toResponse(customerRepository.save(customer));
+        Customer saved = customerRepository.save(customer);
+
+        boolean cadenceChanged = request.contactCadenceDays() != null
+                && !request.contactCadenceDays().equals(oldCadence);
+        if (cadenceChanged) {
+            contactScheduleService.generateNextSchedule(saved);
+        }
+        return customerMapper.toResponse(saved);
     }
 
     @Transactional

@@ -1,5 +1,7 @@
 package br.com.centralmax.maxhub.dashboard;
 
+import br.com.centralmax.maxhub.crm.ContactScheduleRepository;
+import br.com.centralmax.maxhub.crm.ContactScheduleStatus;
 import br.com.centralmax.maxhub.customer.CustomerInteractionRepository;
 import br.com.centralmax.maxhub.customer.CustomerRepository;
 import br.com.centralmax.maxhub.financial.FinancialEntryRepository;
@@ -29,6 +31,7 @@ public class DashboardService {
     private final OrderRepository orderRepository;
     private final CustomerInteractionRepository interactionRepository;
     private final FinancialEntryRepository financialEntryRepository;
+    private final ContactScheduleRepository contactScheduleRepository;
 
     @Transactional(readOnly = true)
     public DashboardResponse getSummary() {
@@ -71,9 +74,14 @@ public class DashboardService {
         BigDecimal receivedToday = financialEntryRepository.sumPaidByTypeAndStatusInPeriod(
                 FinancialEntryType.RECEITA, FinancialEntryStatus.PAGO, todayStart, todayEnd);
 
+        long schedulesToday = contactScheduleRepository.countByScheduledDateAndStatus(now, ContactScheduleStatus.PENDENTE);
+        long schedulesTomorrow = contactScheduleRepository.countByScheduledDateAndStatus(now.plusDays(1), ContactScheduleStatus.PENDENTE);
+        long overdueSchedules = contactScheduleRepository.countOverdue(now, ContactScheduleStatus.PENDENTE);
+
         return new DashboardResponse(activeProducts, totalCustomers, totalOrders,
                 pendingOrders, ordersOutForDelivery, ordersToday, contactsToday, overdueContacts,
                 saldoMes, aReceber,
-                ordersToConfirm, ordersToSeparate, overdueFinancial, receivableToday, receivedToday);
+                ordersToConfirm, ordersToSeparate, overdueFinancial, receivableToday, receivedToday,
+                schedulesToday, schedulesTomorrow, overdueSchedules);
     }
 }

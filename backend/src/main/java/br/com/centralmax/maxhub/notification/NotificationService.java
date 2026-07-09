@@ -1,5 +1,8 @@
 package br.com.centralmax.maxhub.notification;
 
+import br.com.centralmax.maxhub.crm.ContactSchedule;
+import br.com.centralmax.maxhub.crm.ContactScheduleRepository;
+import br.com.centralmax.maxhub.crm.ContactScheduleStatus;
 import br.com.centralmax.maxhub.customer.CustomerInteraction;
 import br.com.centralmax.maxhub.customer.CustomerInteractionRepository;
 import br.com.centralmax.maxhub.order.Order;
@@ -10,6 +13,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 
 @Service
@@ -18,6 +23,7 @@ public class NotificationService {
 
     private final OrderRepository orderRepository;
     private final CustomerInteractionRepository interactionRepository;
+    private final ContactScheduleRepository contactScheduleRepository;
 
     private static final List<OrderStatus> BOARD_STATUSES = List.of(
             OrderStatus.NOVO, OrderStatus.CONFIRMADO, OrderStatus.EM_SEPARACAO,
@@ -44,7 +50,22 @@ public class NotificationService {
                         i.getCustomer().getId(), i.getCustomer().getName(), i.getScheduledAt()))
                 .toList();
 
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        long schedulesToday = contactScheduleRepository.countByScheduledDateAndStatus(today, ContactScheduleStatus.PENDENTE);
+        List<ContactSchedule> todayScheduleList = contactScheduleRepository
+                .findByScheduledDateAndStatus(today, ContactScheduleStatus.PENDENTE);
+        List<NotificationSummaryResponse.ScheduleItem> contactsToday = todayScheduleList.stream()
+                .limit(5)
+                .map(s -> new NotificationSummaryResponse.ScheduleItem(
+                        s.getId(),
+                        s.getCustomer().getId(),
+                        s.getCustomer().getName(),
+                        s.getCustomer().getPhone(),
+                        s.getReason(),
+                        s.getScheduledDate()))
+                .toList();
+
         return new NotificationSummaryResponse(newOrders, overdueContacts, activeOrdersTotal,
-                recentOrders, overdueCustomers);
+                recentOrders, overdueCustomers, schedulesToday, contactsToday);
     }
 }

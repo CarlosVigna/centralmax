@@ -34,6 +34,11 @@ export interface Customer {
   addressState: string | null;
   addressZip: string | null;
   fullAddress: string | null;
+  contactCadenceDays: number | null;
+  nextContactDate: string | null;
+  lastContactedAt: string | null;
+  cadenceLabel: string | null;
+  isContactDue: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -53,6 +58,9 @@ export interface CustomerRequest {
   addressCity?: string;
   addressState?: string;
   addressZip?: string;
+  contactCadenceDays?: number;
+  nextContactDate?: string;
+  cadenceReason?: string;
 }
 
 export const ORIGIN_OPTIONS: { value: CustomerOrigin; label: string }[] = [

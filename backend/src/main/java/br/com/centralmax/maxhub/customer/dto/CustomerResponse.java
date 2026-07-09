@@ -5,6 +5,8 @@ import br.com.centralmax.maxhub.customer.CustomerStatus;
 import br.com.centralmax.maxhub.customer.CustomerType;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 public record CustomerResponse(
@@ -27,6 +29,11 @@ public record CustomerResponse(
         String addressState,
         String addressZip,
         String fullAddress,
+        Integer contactCadenceDays,
+        LocalDate nextContactDate,
+        LocalDateTime lastContactedAt,
+        String cadenceLabel,
+        boolean isContactDue,
         Instant createdAt,
         Instant updatedAt
 ) {

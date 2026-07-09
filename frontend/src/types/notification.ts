@@ -11,10 +11,21 @@ export interface CustomerContactItem {
   nextContactDate: string;
 }
 
+export interface ScheduleItem {
+  scheduleId: string;
+  customerId: string;
+  customerName: string;
+  phone: string | null;
+  reason: string | null;
+  scheduledDate: string;
+}
+
 export interface NotificationSummary {
   newOrders: number;
   overdueContacts: number;
   activeOrdersTotal: number;
   recentOrders: OrderSummaryItem[];
   overdueCustomers: CustomerContactItem[];
+  schedulesToday: number;
+  contactsToday: ScheduleItem[];
 }

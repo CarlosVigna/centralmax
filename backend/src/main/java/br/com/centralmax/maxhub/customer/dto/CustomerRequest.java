@@ -49,5 +49,11 @@ public record CustomerRequest(
         String addressState,
 
         @Size(max = 10)
-        String addressZip
+        String addressZip,
+
+        Integer contactCadenceDays,
+
+        java.time.LocalDate nextContactDate,
+
+        String cadenceReason
 ) {}

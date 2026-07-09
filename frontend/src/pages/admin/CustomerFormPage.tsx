@@ -25,6 +25,9 @@ interface CustomerFormValues {
   addressNeighborhood: string;
   addressCity: string;
   addressState: string;
+  contactCadenceDays: string;
+  nextContactDate: string;
+  cadenceReason: string;
 }
 
 export function CustomerFormPage() {
@@ -58,8 +61,13 @@ export function CustomerFormPage() {
       addressNeighborhood: '',
       addressCity: 'São José do Rio Preto',
       addressState: 'SP',
+      contactCadenceDays: '',
+      nextContactDate: '',
+      cadenceReason: '',
     },
   });
+
+  const cadenceDaysWatched = watch('contactCadenceDays');
 
   useEffect(() => {
     if (existing) {
@@ -78,6 +86,9 @@ export function CustomerFormPage() {
         addressNeighborhood: existing.addressNeighborhood ?? '',
         addressCity: existing.addressCity ?? 'São José do Rio Preto',
         addressState: existing.addressState ?? 'SP',
+        contactCadenceDays: existing.contactCadenceDays != null ? String(existing.contactCadenceDays) : '',
+        nextContactDate: existing.nextContactDate ?? '',
+        cadenceReason: '',
       });
     }
   }, [existing, reset]);
@@ -135,6 +146,9 @@ export function CustomerFormPage() {
       addressNeighborhood: values.addressNeighborhood.trim() || undefined,
       addressCity: values.addressCity.trim() || undefined,
       addressState: values.addressState.trim() || undefined,
+      contactCadenceDays: values.contactCadenceDays ? Number(values.contactCadenceDays) : undefined,
+      nextContactDate: values.nextContactDate || undefined,
+      cadenceReason: values.cadenceReason.trim() || undefined,
     };
     saveMutation.mutate(request);
   }
@@ -350,6 +364,57 @@ export function CustomerFormPage() {
                 placeholder="SP"
                 {...register('addressState', {
                   maxLength: { value: 2, message: 'Máximo 2 caracteres' },
+                })}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* ── Cadência de Contato ── */}
+        <div className="rounded-lg border border-neutral-200 p-4">
+          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-neutral-500">
+            Cadência de Contato
+          </h2>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 mb-4">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-neutral-900">
+                Intervalo entre contatos (dias)
+              </label>
+              <input
+                type="number"
+                min={1}
+                placeholder="Ex: 7"
+                {...register('contactCadenceDays', {
+                  min: { value: 1, message: 'Mínimo 1 dia' },
+                })}
+                className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-light"
+              />
+              <p className="mt-1 text-xs text-neutral-400">7 = semanal, 15 = quinzenal, 30 = mensal</p>
+              {formState.errors.contactCadenceDays && (
+                <p className="mt-1 text-xs text-danger">{formState.errors.contactCadenceDays.message}</p>
+              )}
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-neutral-900">
+                Próximo contato
+              </label>
+              <input
+                type="date"
+                {...register('nextContactDate')}
+                className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-light"
+              />
+              {!cadenceDaysWatched && (
+                <p className="mt-1 text-xs text-neutral-400">Para prospects sem cadência fixa</p>
+              )}
+            </div>
+            <div className="sm:col-span-1">
+              <Input
+                label="Motivo do próximo contato"
+                id="cadenceReason"
+                placeholder="Ex: Pedido semanal, Retorno prospect"
+                {...register('cadenceReason', {
+                  maxLength: { value: 255, message: 'Máximo 255 caracteres' },
                 })}
               />
             </div>

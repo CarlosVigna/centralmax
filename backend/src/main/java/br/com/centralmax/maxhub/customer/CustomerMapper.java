@@ -12,7 +12,20 @@ public interface CustomerMapper {
     @Mapping(target = "originLabel",
             expression = "java(br.com.centralmax.maxhub.customer.dto.CustomerResponse.labelOf(customer.getOrigin()))")
     @Mapping(target = "fullAddress", expression = "java(buildFullAddress(customer))")
+    @Mapping(target = "cadenceLabel", expression = "java(buildCadenceLabel(customer))")
+    @Mapping(target = "isContactDue", expression = "java(isContactDue(customer))")
     CustomerResponse toResponse(Customer customer);
+
+    default String buildCadenceLabel(Customer customer) {
+        if (customer.getContactCadenceDays() == null) return null;
+        int days = customer.getContactCadenceDays();
+        return "A cada " + days + " dia" + (days == 1 ? "" : "s");
+    }
+
+    default boolean isContactDue(Customer customer) {
+        if (customer.getNextContactDate() == null) return false;
+        return !customer.getNextContactDate().isAfter(java.time.LocalDate.now());
+    }
 
     default String buildFullAddress(Customer customer) {
         if (customer.getAddressStreet() == null || customer.getAddressStreet().isBlank()) return null;

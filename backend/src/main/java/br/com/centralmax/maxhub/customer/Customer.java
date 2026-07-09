@@ -17,6 +17,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
@@ -82,6 +84,15 @@ public class Customer {
 
     @Column(columnDefinition = "TEXT")
     private String notes;
+
+    @Column(name = "contact_cadence_days")
+    private Integer contactCadenceDays;
+
+    @Column(name = "next_contact_date")
+    private LocalDate nextContactDate;
+
+    @Column(name = "last_contacted_at")
+    private LocalDateTime lastContactedAt;
 
     @Column(nullable = false)
     private boolean active;

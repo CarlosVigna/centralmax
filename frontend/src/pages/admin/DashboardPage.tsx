@@ -106,27 +106,27 @@ export function DashboardPage() {
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               <ClickableCard
                 label="Contatos hoje"
-                value={data.contactsToday}
-                accent="green"
-                onClick={() => navigate('/admin/agenda')}
+                value={data.schedulesToday}
+                accent={data.schedulesToday > 0 ? 'green' : 'gray'}
+                onClick={() => navigate('/admin/agenda?period=today')}
               />
               <ClickableCard
-                label="Contatos atrasados"
-                value={data.overdueContacts}
-                accent={data.overdueContacts > 0 ? 'red' : 'gray'}
-                onClick={() => navigate('/admin/agenda')}
+                label="Contatos amanhã"
+                value={data.schedulesTomorrow}
+                accent="blue"
+                onClick={() => navigate('/admin/agenda?period=tomorrow')}
+              />
+              <ClickableCard
+                label="Em atraso"
+                value={data.overdueSchedules}
+                accent={data.overdueSchedules > 0 ? 'red' : 'gray'}
+                onClick={() => navigate('/admin/agenda?period=overdue')}
               />
               <ClickableCard
                 label="Clientes"
                 value={data.totalCustomers}
                 accent="gray"
                 onClick={() => navigate('/admin/clientes')}
-              />
-              <ClickableCard
-                label="Produtos ativos"
-                value={data.activeProducts}
-                accent="gray"
-                onClick={() => navigate('/admin/produtos')}
               />
             </div>
           </section>

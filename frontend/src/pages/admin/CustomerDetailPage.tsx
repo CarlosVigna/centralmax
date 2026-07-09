@@ -7,10 +7,16 @@ import {
   createInteraction,
   deleteInteraction,
 } from '../../services/interactionService';
+import {
+  getSchedulesByCustomer,
+  createSchedule,
+  completeSchedule,
+} from '../../services/contactScheduleService';
 import { listOrders } from '../../services/orderService';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
+import { Modal } from '../../components/ui/Modal';
 import { INTERACTION_TYPE_OPTIONS, INTERACTION_TYPE_LABELS } from '../../types/interaction';
 import { STATUS_BADGE_VARIANT, STATUS_LABELS } from '../../types/order';
 import type { InteractionRequest, InteractionType } from '../../types/interaction';
@@ -89,6 +95,49 @@ export function CustomerDetailPage() {
   const [formNotes, setFormNotes] = useState('');
   const [formScheduledAt, setFormScheduledAt] = useState('');
 
+  // Cadence modals
+  const [showCompleteModal, setShowCompleteModal] = useState(false);
+  const [completeScheduleId, setCompleteScheduleId] = useState<string | null>(null);
+  const [completeNotes, setCompleteNotes] = useState('');
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [scheduleDate, setScheduleDate] = useState('');
+  const [scheduleReason, setScheduleReason] = useState('');
+  const [cadenceMessage, setCadenceMessage] = useState<string | null>(null);
+
+  const { data: schedules = [] } = useQuery({
+    queryKey: ['customer-schedules', id],
+    queryFn: () => getSchedulesByCustomer(id!),
+    enabled: !!id && activeTab === 'resumo',
+  });
+
+  const completeMutation = useMutation({
+    mutationFn: ({ scheduleId, notes }: { scheduleId: string; notes?: string }) =>
+      completeSchedule(scheduleId, { notes }),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['customer-schedules', id] });
+      queryClient.invalidateQueries({ queryKey: ['customer', id] });
+      setShowCompleteModal(false);
+      setCompleteNotes('');
+      if (result.nextContactDate) {
+        const d = new Date(result.nextContactDate + 'T00:00:00').toLocaleDateString('pt-BR');
+        setCadenceMessage(`Contato registrado! Próximo agendado para ${d}`);
+        setTimeout(() => setCadenceMessage(null), 5000);
+      }
+    },
+  });
+
+  const createScheduleMutation = useMutation({
+    mutationFn: ({ date, reason }: { date: string; reason?: string }) =>
+      createSchedule(id!, { scheduledDate: date, reason }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customer-schedules', id] });
+      queryClient.invalidateQueries({ queryKey: ['customer', id] });
+      setShowScheduleModal(false);
+      setScheduleDate('');
+      setScheduleReason('');
+    },
+  });
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     createMutation.mutate({
@@ -146,38 +195,171 @@ export function CustomerDetailPage() {
       </div>
 
       {activeTab === 'resumo' && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Card>
-            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-neutral-500">
-              Dados do cliente
-            </h2>
-            <dl className="space-y-3 text-sm">
-              <Row label="Status">
-                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[customer.status] ?? ''}`}>
-                  {customer.statusLabel}
-                </span>
-              </Row>
-              <Row label="Tipo">{customer.customerType}</Row>
-              <Row label="Origem">{customer.originLabel}</Row>
-              <Row label="Telefone">{customer.phone ?? '—'}</Row>
-              <Row label="E-mail">{customer.email ?? '—'}</Row>
-              <Row label="CPF/CNPJ">{customer.document ?? '—'}</Row>
-              <Row label="Cadastrado em">{formatDate(customer.createdAt)}</Row>
-            </dl>
-          </Card>
-
-          {customer.notes && (
-            <Card>
-              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-500">
-                Observações
-              </h2>
-              <p className="text-sm text-neutral-700 leading-relaxed whitespace-pre-wrap">
-                {customer.notes}
-              </p>
-            </Card>
+        <div className="space-y-4">
+          {cadenceMessage && (
+            <div className="rounded-md border border-green-300 bg-green-50 px-4 py-2 text-sm text-green-800">
+              {cadenceMessage}
+            </div>
           )}
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Card>
+              <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-neutral-500">
+                Dados do cliente
+              </h2>
+              <dl className="space-y-3 text-sm">
+                <Row label="Status">
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[customer.status] ?? ''}`}>
+                    {customer.statusLabel}
+                  </span>
+                </Row>
+                <Row label="Tipo">{customer.customerType}</Row>
+                <Row label="Origem">{customer.originLabel}</Row>
+                <Row label="Telefone">{customer.phone ?? '—'}</Row>
+                <Row label="E-mail">{customer.email ?? '—'}</Row>
+                <Row label="CPF/CNPJ">{customer.document ?? '—'}</Row>
+                <Row label="Cadastrado em">{formatDate(customer.createdAt)}</Row>
+              </dl>
+            </Card>
+
+            {/* Cadence card */}
+            <Card>
+              <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-neutral-500">
+                📅 Cadência de Contato
+              </h2>
+              {!customer.contactCadenceDays && !customer.nextContactDate ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-neutral-400">Sem cadência configurada.</p>
+                  <Button size="sm" variant="outline" onClick={() => setShowScheduleModal(true)}>
+                    Agendar Manualmente
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3 text-sm">
+                  {customer.cadenceLabel && (
+                    <Row label="Intervalo">{customer.cadenceLabel}</Row>
+                  )}
+                  {customer.nextContactDate && (
+                    <Row label="Próximo contato">
+                      <span className={customer.isContactDue ? 'font-semibold text-danger' : 'text-neutral-900'}>
+                        {new Date(customer.nextContactDate + 'T00:00:00').toLocaleDateString('pt-BR')}
+                        {customer.isContactDue && ' (hoje ou atrasado)'}
+                      </span>
+                    </Row>
+                  )}
+                  {customer.lastContactedAt && (
+                    <Row label="Último contato">
+                      {new Date(customer.lastContactedAt).toLocaleDateString('pt-BR')}
+                    </Row>
+                  )}
+
+                  {/* Pending schedules */}
+                  {schedules.filter((s) => s.status === 'PENDENTE').slice(0, 1).map((s) => (
+                    <div key={s.id} className="mt-3 flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => { setCompleteScheduleId(s.id); setShowCompleteModal(true); }}
+                      >
+                        Registrar Contato Agora
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => setShowScheduleModal(true)}>
+                        Agendar Manualmente
+                      </Button>
+                    </div>
+                  ))}
+                  {schedules.filter((s) => s.status === 'PENDENTE').length === 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Button size="sm" variant="outline" onClick={() => setShowScheduleModal(true)}>
+                        Agendar Manualmente
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </Card>
+
+            {customer.notes && (
+              <Card className="sm:col-span-2">
+                <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-500">
+                  Observações
+                </h2>
+                <p className="text-sm text-neutral-700 leading-relaxed whitespace-pre-wrap">
+                  {customer.notes}
+                </p>
+              </Card>
+            )}
+          </div>
         </div>
       )}
+
+      {/* Modal: Registrar Contato */}
+      <Modal
+        open={showCompleteModal}
+        onClose={() => setShowCompleteModal(false)}
+        title="Registrar Contato"
+      >
+        <div className="space-y-3">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-neutral-700">Observações (opcional)</label>
+            <textarea
+              rows={3}
+              value={completeNotes}
+              onChange={(e) => setCompleteNotes(e.target.value)}
+              placeholder="Como foi o contato?"
+              className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowCompleteModal(false)}>Cancelar</Button>
+            <Button
+              disabled={completeMutation.isPending}
+              onClick={() => completeScheduleId && completeMutation.mutate({
+                scheduleId: completeScheduleId, notes: completeNotes || undefined
+              })}
+            >
+              {completeMutation.isPending ? 'Salvando...' : 'Confirmar contato'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal: Agendar Manualmente */}
+      <Modal
+        open={showScheduleModal}
+        onClose={() => setShowScheduleModal(false)}
+        title="Agendar Contato"
+      >
+        <div className="space-y-3">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-neutral-700">Data *</label>
+            <input
+              type="date"
+              value={scheduleDate}
+              onChange={(e) => setScheduleDate(e.target.value)}
+              className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-neutral-700">Motivo (opcional)</label>
+            <input
+              type="text"
+              value={scheduleReason}
+              onChange={(e) => setScheduleReason(e.target.value)}
+              placeholder="Ex: Retorno sobre proposta"
+              className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowScheduleModal(false)}>Cancelar</Button>
+            <Button
+              disabled={!scheduleDate || createScheduleMutation.isPending}
+              onClick={() => createScheduleMutation.mutate({ date: scheduleDate, reason: scheduleReason || undefined })}
+            >
+              {createScheduleMutation.isPending ? 'Agendando...' : 'Agendar'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {activeTab === 'pedidos' && (
         <div className="space-y-4">

@@ -17,5 +17,8 @@ public record DashboardResponse(
         long ordersToSeparate,
         long overdueFinancial,
         BigDecimal receivableToday,
-        BigDecimal receivedToday
+        BigDecimal receivedToday,
+        long schedulesToday,
+        long schedulesTomorrow,
+        long overdueSchedules
 ) {}

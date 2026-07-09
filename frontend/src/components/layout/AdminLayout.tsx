@@ -30,7 +30,7 @@ export function AdminLayout() {
   const [showBell, setShowBell] = useState(false);
   const bellRef = useRef<HTMLDivElement>(null);
 
-  const badgeCount = (notifications?.newOrders ?? 0) + (notifications?.overdueContacts ?? 0);
+  const badgeCount = (notifications?.newOrders ?? 0) + (notifications?.overdueContacts ?? 0) + (notifications?.schedulesToday ?? 0);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -120,6 +120,44 @@ export function AdminLayout() {
                     </Link>
                   </div>
 
+                  {/* Contatos de hoje */}
+                  <div className="border-t border-neutral-100 px-4 py-3">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                      Contatos de hoje ({notifications?.schedulesToday ?? 0})
+                    </p>
+                    {!notifications?.contactsToday?.length ? (
+                      <p className="text-xs text-neutral-400">Nenhum contato hoje</p>
+                    ) : (
+                      <ul className="space-y-2">
+                        {notifications.contactsToday.map((s) => (
+                          <li key={s.scheduleId} className="flex items-start justify-between gap-2">
+                            <div>
+                              <p className="text-xs font-semibold text-neutral-800">{s.customerName}</p>
+                              {s.reason && <p className="text-xs text-neutral-500">{s.reason}</p>}
+                            </div>
+                            {s.phone && (
+                              <a
+                                href={`https://api.whatsapp.com/send?phone=${s.phone.replace(/\D/g, '').replace(/^(?!55)/, '55')}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="whitespace-nowrap text-xs text-green-600 hover:underline"
+                              >
+                                💬
+                              </a>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    <Link
+                      to="/admin/agenda?period=today"
+                      onClick={() => setShowBell(false)}
+                      className="mt-2 block text-xs text-primary hover:underline"
+                    >
+                      Ver agenda completa →
+                    </Link>
+                  </div>
+
                   {/* Contatos em atraso */}
                   <div className="border-t border-neutral-100 px-4 py-3">
                     <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">
@@ -140,7 +178,7 @@ export function AdminLayout() {
                       </ul>
                     )}
                     <Link
-                      to="/admin/agenda"
+                      to="/admin/agenda?period=overdue"
                       onClick={() => setShowBell(false)}
                       className="mt-2 block text-xs text-primary hover:underline"
                     >
