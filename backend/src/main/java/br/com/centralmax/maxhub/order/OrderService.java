@@ -109,6 +109,8 @@ public class OrderService {
                 .notes(blankToNull(request.notes()))
                 .totalAmount(BigDecimal.ZERO)
                 .paymentCondition(paymentCondition)
+                .nfNumber(blankToNull(request.nfNumber()))
+                .estimatedDeliveryDate(request.estimatedDeliveryDate())
                 .build();
         order = orderRepository.save(order);
 
@@ -185,6 +187,8 @@ public class OrderService {
         order.setCustomerName(customerName);
         order.setCustomerPhone(customerPhone);
         order.setNotes(blankToNull(request.notes()));
+        order.setNfNumber(blankToNull(request.nfNumber()));
+        order.setEstimatedDeliveryDate(request.estimatedDeliveryDate());
 
         if (request.paymentCondition() != null) {
             order.setPaymentCondition(request.paymentCondition());
@@ -454,9 +458,10 @@ public class OrderService {
 
             String phone = c != null ? c.getPhone() : order.getCustomerPhone();
             String name = c != null ? c.getName() : order.getCustomerName();
+            String neighborhood = c != null ? c.getAddressNeighborhood() : null;
 
             stops.add(new br.com.centralmax.maxhub.order.dto.DeliveryRouteStop(
-                    order.getOrderNumber(), name, phone, address, fullAddress, itemsSummary));
+                    order.getOrderNumber(), name, phone, address, fullAddress, itemsSummary, neighborhood));
         }
 
         String googleMapsUrl = buildGoogleMapsUrl(stops);

@@ -8,6 +8,7 @@ export interface DeliveryRouteStop {
   address: string | null;
   fullAddress: string | null;
   items: string;
+  neighborhood: string | null;
 }
 
 export interface DeliveryRouteResponse {

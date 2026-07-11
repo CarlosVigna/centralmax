@@ -34,3 +34,8 @@ export async function updateCustomer(id: string, request: CustomerRequest): Prom
 export async function deleteCustomer(id: string): Promise<void> {
   await api.delete(`/customers/${id}`);
 }
+
+export async function listReactivateCustomers(): Promise<Customer[]> {
+  const { data } = await api.get<Customer[]>('/customers/reactivate');
+  return data;
+}

@@ -16,6 +16,8 @@ export interface FinancialEntryResponse {
   orderNumber: string | null;
   notes: string | null;
   createdAt: string;
+  customerName: string | null;
+  customerPhone: string | null;
 }
 
 export interface FinancialEntryRequest {

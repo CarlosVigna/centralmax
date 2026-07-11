@@ -103,6 +103,23 @@ export function ProductsPage() {
       ),
     },
     {
+      header: 'Margem C',
+      render: (row: ProductAdmin) => {
+        if (!row.purchasePrice || row.purchasePrice <= 0) {
+          return <span className="text-neutral-400">—</span>;
+        }
+        const margin = ((row.priceC / row.purchasePrice) - 1) * 100;
+        const color = margin >= 20 ? 'bg-green-100 text-green-700'
+          : margin >= 10 ? 'bg-amber-100 text-amber-700'
+          : 'bg-red-100 text-red-700';
+        return (
+          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${color}`}>
+            {margin.toFixed(1)}%
+          </span>
+        );
+      },
+    },
+    {
       header: 'Fotos',
       render: (row: ProductAdmin) => (
         <span className="text-neutral-600">{row.photos?.length ?? 0}</span>

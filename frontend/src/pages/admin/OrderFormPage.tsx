@@ -7,6 +7,7 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { createOrder, updateOrder, getOrder } from '../../services/orderService';
 import { listCustomers, getCustomer } from '../../services/customerService';
+import { formatCurrency as fmtCur } from '../../utils/formatCurrency';
 import { listAdminProducts } from '../../services/productService';
 import type { Customer, CustomerType } from '../../types/customer';
 import type { OrderItemRequest, PaymentCondition } from '../../types/order';
@@ -59,6 +60,8 @@ export function OrderFormPage() {
   const [discount, setDiscount] = useState(0);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [notes, setNotes] = useState('');
+  const [nfNumber, setNfNumber] = useState('');
+  const [estimatedDeliveryDate, setEstimatedDeliveryDate] = useState('');
   const [paymentCondition, setPaymentCondition] = useState<PaymentCondition>('NA_ENTREGA');
   const [editOrderNumber, setEditOrderNumber] = useState<string | null>(null);
   const [initialized, setInitialized] = useState(false);
@@ -99,6 +102,8 @@ export function OrderFormPage() {
     if (!existingOrder || initialized) return;
     setEditOrderNumber(existingOrder.orderNumber ?? null);
     setNotes(existingOrder.notes ?? '');
+    setNfNumber(existingOrder.nfNumber ?? '');
+    setEstimatedDeliveryDate(existingOrder.estimatedDeliveryDate ?? '');
     setPaymentCondition(existingOrder.paymentCondition ?? 'NA_ENTREGA');
 
     if (existingOrder.customerId) {
@@ -214,7 +219,14 @@ export function OrderFormPage() {
         alert('Selecione um cliente cadastrado ou mude para pedido avulso.');
         return;
       }
-      const payload = { customerId: selectedCustomer.id, notes: notes || undefined, items, paymentCondition };
+      const payload = {
+        customerId: selectedCustomer.id,
+        notes: notes || undefined,
+        nfNumber: nfNumber.trim() || undefined,
+        estimatedDeliveryDate: estimatedDeliveryDate || undefined,
+        items,
+        paymentCondition,
+      };
       if (isEdit) {
         updateMutation.mutate({ id: editId!, request: payload });
       } else {
@@ -229,6 +241,8 @@ export function OrderFormPage() {
         customerName: walkinName.trim(),
         customerPhone: walkinPhone.trim() || undefined,
         notes: notes || undefined,
+        nfNumber: nfNumber.trim() || undefined,
+        estimatedDeliveryDate: estimatedDeliveryDate || undefined,
         items,
         paymentCondition,
       };
@@ -312,6 +326,12 @@ export function OrderFormPage() {
                   <p className="mt-1 text-xs text-primary">
                     Usando {PRICE_LABEL[customerType]}
                   </p>
+                  {selectedCustomer.overdueAmount != null && selectedCustomer.overdueAmount > 0 && (
+                    <div className="mt-2 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-700">
+                      ⚠️ Cliente com {selectedCustomer.overdueCount} título(s) vencido(s) no valor de{' '}
+                      <strong>{fmtCur(selectedCustomer.overdueAmount)}</strong>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <>
@@ -328,8 +348,8 @@ export function OrderFormPage() {
                             type="button"
                             className="w-full px-3 py-2 text-left text-sm hover:bg-neutral-50"
                             onClick={() => {
-                              setSelectedCustomer(c);
                               setCustomerSearch('');
+                              getCustomer(c.id).then(setSelectedCustomer).catch(() => setSelectedCustomer(c));
                             }}
                           >
                             <span className="font-medium">{c.name}</span>
@@ -524,6 +544,30 @@ export function OrderFormPage() {
                 {PAYMENT_CONDITION_LABELS[key]}
               </label>
             ))}
+          </div>
+        </Card>
+
+        {/* ── NF + Prazo ── */}
+        <Card>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-500">
+            NF e Prazo de Entrega
+          </h2>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Input
+              label="Número da NF"
+              placeholder="Ex: 000123"
+              value={nfNumber}
+              onChange={(e) => setNfNumber(e.target.value)}
+            />
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium text-neutral-900">Previsão de Entrega</label>
+              <input
+                type="date"
+                value={estimatedDeliveryDate}
+                onChange={(e) => setEstimatedDeliveryDate(e.target.value)}
+                className="rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-light"
+              />
+            </div>
           </div>
         </Card>
 

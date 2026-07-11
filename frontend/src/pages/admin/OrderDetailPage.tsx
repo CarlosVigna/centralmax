@@ -54,6 +54,8 @@ export function OrderDetailPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
+  const [walkinPhone, setWalkinPhone] = useState('');
+
   const { data: order, isLoading, isError } = useQuery({
     queryKey: ['order', id],
     queryFn: () => getOrder(id!),
@@ -149,10 +151,20 @@ export function OrderDetailPage() {
   const canCancel = order.status !== 'CONCLUIDO' && order.status !== 'CANCELADO';
   const canEdit = order.status === 'NOVO' || order.status === 'CONFIRMADO';
   const canRevert = order.status !== 'NOVO' && order.status !== 'CANCELADO';
-  const hasPhone = Boolean(order.customerDisplayPhone);
+  const isWalkin = !order.customerId;
+  const effectivePhone = order.customerDisplayPhone || (isWalkin ? walkinPhone : null);
+  const hasPhone = Boolean(effectivePhone);
 
   return (
-    <div>
+    <div id="order-print">
+      <style>{`
+        @media print {
+          body > * { display: none !important; }
+          #order-print, #order-print * { display: revert !important; }
+          #order-print { padding: 16px; }
+          button, a[role="button"], .no-print { display: none !important; }
+        }
+      `}</style>
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <Link to="/admin/pedidos" className="text-sm text-primary hover:underline">
           ← Pedidos
@@ -174,7 +186,7 @@ export function OrderDetailPage() {
           )}
           {hasPhone ? (
             <a
-              href={buildWhatsAppUrl(order.customerDisplayPhone!, order)}
+              href={buildWhatsAppUrl(effectivePhone!, order)}
               target="_blank"
               rel="noreferrer"
             >
@@ -182,11 +194,35 @@ export function OrderDetailPage() {
                 💬 WhatsApp
               </Button>
             </a>
+          ) : isWalkin ? (
+            <div className="flex items-center gap-1">
+              <input
+                type="tel"
+                placeholder="Telefone para WhatsApp"
+                value={walkinPhone}
+                onChange={(e) => setWalkinPhone(e.target.value)}
+                className="rounded-md border border-neutral-300 px-2 py-1 text-xs w-40 focus:outline-none focus:ring-1 focus:ring-primary-light"
+              />
+              {walkinPhone.trim() ? (
+                <a href={buildWhatsAppUrl(walkinPhone.trim(), order)} target="_blank" rel="noreferrer">
+                  <Button variant="outline" size="sm">💬</Button>
+                </a>
+              ) : (
+                <Button variant="outline" size="sm" disabled>💬</Button>
+              )}
+            </div>
           ) : (
             <Button variant="outline" size="sm" disabled title="Cliente sem telefone cadastrado">
               💬 WhatsApp
             </Button>
           )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.print()}
+          >
+            🖨️ Imprimir
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -234,6 +270,18 @@ export function OrderDetailPage() {
               <dt className="text-neutral-600">Condição de pagamento</dt>
               <dd className="text-neutral-900">{order.paymentConditionLabel}</dd>
             </div>
+            {order.nfNumber && (
+              <div className="flex justify-between">
+                <dt className="text-neutral-600">NF</dt>
+                <dd className="font-medium text-neutral-900">{order.nfNumber}</dd>
+              </div>
+            )}
+            {order.estimatedDeliveryDate && (
+              <div className="flex justify-between">
+                <dt className="text-neutral-600">Previsão entrega</dt>
+                <dd className="text-neutral-900">{formatLocalDate(order.estimatedDeliveryDate)}</dd>
+              </div>
+            )}
             {order.dueDate && (
               <div className="flex justify-between">
                 <dt className="text-neutral-600">Vencimento</dt>

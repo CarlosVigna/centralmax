@@ -41,7 +41,21 @@ public class CustomerService {
     public CustomerResponse getById(UUID id) {
         Customer customer = findOrThrow(id);
         List<String> favorites = customerRepository.findFavoriteProducts(id);
-        return customerMapper.toResponseWithFavorites(customer, favorites);
+        Object[] overdueData = customerRepository.findOverdueData(id);
+        BigDecimal overdueAmount = BigDecimal.ZERO;
+        int overdueCount = 0;
+        if (overdueData != null && overdueData.length >= 2) {
+            overdueAmount = overdueData[0] != null ? new BigDecimal(overdueData[0].toString()) : BigDecimal.ZERO;
+            overdueCount = overdueData[1] != null ? ((Number) overdueData[1]).intValue() : 0;
+        }
+        return customerMapper.toResponseWithFavorites(customer, favorites, overdueAmount, overdueCount);
+    }
+
+    @Transactional(readOnly = true)
+    public List<CustomerResponse> listReactivate() {
+        LocalDate cutoff = LocalDate.now().minusDays(90);
+        return customerRepository.findCustomersToReactivate(CustomerStatus.ATIVO, cutoff)
+                .stream().map(customerMapper::toResponse).toList();
     }
 
     @Transactional

@@ -22,6 +22,8 @@ export interface DashboardStats {
   billsDueToday: number;
   billsDueThisWeek: number;
   overdueBills: number;
+  receitasMes: number;
+  toReactivateCount: number;
 }
 
 export async function getDashboard(): Promise<DashboardStats> {

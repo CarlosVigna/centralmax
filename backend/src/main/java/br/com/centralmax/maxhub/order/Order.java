@@ -69,6 +69,12 @@ public class Order {
     @Column(name = "due_date")
     private LocalDate dueDate;
 
+    @Column(name = "nf_number", length = 50)
+    private String nfNumber;
+
+    @Column(name = "estimated_delivery_date")
+    private LocalDate estimatedDeliveryDate;
+
     @Column(columnDefinition = "TEXT")
     private String notes;
 

@@ -22,6 +22,11 @@ public record OrderRequest(
 
         PaymentCondition paymentCondition,
 
+        @Size(max = 50, message = "Número da NF deve ter no máximo 50 caracteres")
+        String nfNumber,
+
+        java.time.LocalDate estimatedDeliveryDate,
+
         @NotEmpty(message = "O pedido deve ter ao menos 1 item")
         @Valid
         List<OrderItemRequest> items

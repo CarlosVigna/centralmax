@@ -47,6 +47,8 @@ public record CustomerResponse(
         BigDecimal averageTicket,
         BigDecimal totalPurchased,
         LocalDate lastPurchaseDate,
+        BigDecimal overdueAmount,
+        int overdueCount,
         List<String> favoriteProducts,
         Instant createdAt,
         Instant updatedAt

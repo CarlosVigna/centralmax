@@ -20,9 +20,12 @@ public interface CustomerMapper {
     @Mapping(target = "prospectStatusLabel",
             expression = "java(br.com.centralmax.maxhub.customer.dto.CustomerResponse.labelOf(customer.getProspectStatus()))")
     @Mapping(target = "favoriteProducts", ignore = true)
+    @Mapping(target = "overdueAmount", expression = "java(java.math.BigDecimal.ZERO)")
+    @Mapping(target = "overdueCount", expression = "java(0)")
     CustomerResponse toResponse(Customer customer);
 
-    default CustomerResponse toResponseWithFavorites(Customer customer, List<String> favorites) {
+    default CustomerResponse toResponseWithFavorites(Customer customer, List<String> favorites,
+            java.math.BigDecimal overdueAmount, int overdueCount) {
         CustomerResponse base = toResponse(customer);
         return new CustomerResponse(
                 base.id(), base.name(), base.email(), base.phone(), base.document(),
@@ -34,6 +37,8 @@ public interface CustomerMapper {
                 base.commercialPotential(), base.commercialNotes(), base.businessType(),
                 base.prospectStatus(), base.prospectStatusLabel(), base.lostReason(),
                 base.averageTicket(), base.totalPurchased(), base.lastPurchaseDate(),
+                overdueAmount,
+                overdueCount,
                 favorites,
                 base.createdAt(), base.updatedAt()
         );

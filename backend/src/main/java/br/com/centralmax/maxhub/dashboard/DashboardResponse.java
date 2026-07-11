@@ -23,5 +23,7 @@ public record DashboardResponse(
         long overdueSchedules,
         BigDecimal billsDueToday,
         BigDecimal billsDueThisWeek,
-        BigDecimal overdueBills
+        BigDecimal overdueBills,
+        BigDecimal receitasMes,
+        long toReactivateCount
 ) {}

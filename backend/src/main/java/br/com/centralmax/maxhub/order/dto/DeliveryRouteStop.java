@@ -6,5 +6,6 @@ public record DeliveryRouteStop(
         String phone,
         String address,
         String fullAddress,
-        String items
+        String items,
+        String neighborhood
 ) {}

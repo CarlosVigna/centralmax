@@ -85,11 +85,16 @@ public class DashboardService {
         BigDecimal overdueBills = financialEntryRepository.sumOverdue(
                 FinancialEntryType.DESPESA, FinancialEntryStatus.PENDENTE, now);
 
+        LocalDate reactivateCutoff = now.minusDays(90);
+        long toReactivateCount = customerRepository.countCustomersToReactivate(
+                br.com.centralmax.maxhub.customer.CustomerStatus.ATIVO, reactivateCutoff);
+
         return new DashboardResponse(activeProducts, totalCustomers, totalOrders,
                 pendingOrders, ordersOutForDelivery, ordersToday, contactsToday, overdueContacts,
                 saldoMes, aReceber,
                 ordersToConfirm, ordersToSeparate, overdueFinancial, receivableToday, receivedToday,
                 schedulesToday, schedulesTomorrow, overdueSchedules,
-                billsDueToday, billsDueThisWeek, overdueBills);
+                billsDueToday, billsDueThisWeek, overdueBills,
+                receitasMes, toReactivateCount);
     }
 }

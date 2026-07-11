@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { getDashboard } from '../../services/dashboardService';
+import { getGoal, setGoal } from '../../services/goalService';
 import { useAuth } from '../../hooks/useAuth';
 
 const fmtCurrency = (v: number) =>
@@ -29,10 +31,36 @@ function capitalize(s: string) {
 export function DashboardPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [editGoal, setEditGoal] = useState(false);
+  const [goalInput, setGoalInput] = useState('');
+
   const { data, isLoading, isError } = useQuery({
     queryKey: ['dashboard'],
     queryFn: getDashboard,
   });
+
+  const currentMonth = new Date().toISOString().slice(0, 7);
+
+  const { data: goal, refetch: refetchGoal } = useQuery({
+    queryKey: ['sales-goal'],
+    queryFn: () => getGoal(currentMonth),
+    retry: false,
+  });
+
+  const goalMutation = useMutation({
+    mutationFn: ({ month, amount }: { month: string; amount: number }) => setGoal(month, amount),
+    onSuccess: () => {
+      refetchGoal();
+      setEditGoal(false);
+      setGoalInput('');
+    },
+  });
+
+  function handleSetGoal() {
+    const amount = parseFloat(goalInput.replace(',', '.'));
+    if (!amount || amount <= 0) return;
+    goalMutation.mutate({ month: currentMonth, amount });
+  }
 
   const firstName = user?.name?.split(' ')[0] ?? 'Usuário';
 
@@ -178,6 +206,83 @@ export function DashboardPage() {
                 onClick={() => navigate('/admin/pedidos')} />
             </div>
           </section>
+
+          {/* ── Meta de Vendas ── */}
+          <section>
+            <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-neutral-400">
+              Meta de Vendas
+            </h2>
+            <div className="rounded-xl border border-neutral-200 bg-white px-5 py-4">
+              {goal ? (
+                <>
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-sm font-medium text-neutral-700">
+                      {fmtCurrency(data.receitasMes ?? 0)} de {fmtCurrency(goal.targetAmount)}
+                    </span>
+                    <button onClick={() => { setEditGoal(true); setGoalInput(String(goal.targetAmount)); }}
+                      className="text-xs text-primary hover:underline">
+                      Alterar meta
+                    </button>
+                  </div>
+                  <div className="h-3 w-full overflow-hidden rounded-full bg-neutral-100">
+                    <div
+                      className="h-full rounded-full bg-primary transition-all"
+                      style={{ width: `${Math.min(100, ((data.receitasMes ?? 0) / goal.targetAmount) * 100).toFixed(1)}%` }}
+                    />
+                  </div>
+                  <p className="mt-1 text-right text-xs text-neutral-500">
+                    {Math.min(100, (((data.receitasMes ?? 0) / goal.targetAmount) * 100)).toFixed(1)}% atingido
+                  </p>
+                </>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <p className="text-sm text-neutral-500">Nenhuma meta definida para este mês.</p>
+                  {!editGoal && (
+                    <button onClick={() => setEditGoal(true)}
+                      className="w-fit rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-primary/90">
+                      Definir meta
+                    </button>
+                  )}
+                </div>
+              )}
+              {editGoal && (
+                <div className="mt-3 flex gap-2">
+                  <input
+                    type="number"
+                    min="1"
+                    step="100"
+                    placeholder="Valor da meta (R$)"
+                    value={goalInput}
+                    onChange={(e) => setGoalInput(e.target.value)}
+                    className="flex-1 rounded-md border border-neutral-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-light"
+                  />
+                  <button onClick={handleSetGoal} disabled={goalMutation.isPending}
+                    className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-60">
+                    Salvar
+                  </button>
+                  <button onClick={() => setEditGoal(false)}
+                    className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-600 hover:bg-neutral-50">
+                    Cancelar
+                  </button>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* ── Reativação de Clientes ── */}
+          {(data.toReactivateCount ?? 0) > 0 && (
+            <section>
+              <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-neutral-400">
+                Reativação
+              </h2>
+              <ActionItem
+                emoji="🔄"
+                label="clientes sem compra há 90+ dias"
+                count={data.toReactivateCount ?? 0}
+                onClick={() => navigate('/admin/clientes?tab=reativar')}
+              />
+            </section>
+          )}
         </>
       )}
     </div>

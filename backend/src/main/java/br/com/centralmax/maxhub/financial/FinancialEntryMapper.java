@@ -17,7 +17,21 @@ public interface FinancialEntryMapper {
     @Mapping(target = "statusLabel", expression = "java(resolveEffectiveStatusLabel(entry))")
     @Mapping(target = "orderId", expression = "java(entry.getOrder() != null ? entry.getOrder().getId() : null)")
     @Mapping(target = "orderNumber", expression = "java(entry.getOrder() != null ? entry.getOrder().getOrderNumber() : null)")
+    @Mapping(target = "customerName", expression = "java(resolveCustomerName(entry))")
+    @Mapping(target = "customerPhone", expression = "java(resolveCustomerPhone(entry))")
     FinancialEntryResponse toResponse(FinancialEntry entry);
+
+    default String resolveCustomerName(FinancialEntry entry) {
+        if (entry.getOrder() == null) return null;
+        br.com.centralmax.maxhub.order.Order o = entry.getOrder();
+        return o.getCustomer() != null ? o.getCustomer().getName() : o.getCustomerName();
+    }
+
+    default String resolveCustomerPhone(FinancialEntry entry) {
+        if (entry.getOrder() == null) return null;
+        br.com.centralmax.maxhub.order.Order o = entry.getOrder();
+        return o.getCustomer() != null ? o.getCustomer().getPhone() : o.getCustomerPhone();
+    }
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "status", ignore = true)

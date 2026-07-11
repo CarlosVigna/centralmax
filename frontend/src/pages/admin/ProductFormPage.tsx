@@ -458,6 +458,39 @@ export function ProductFormPage() {
                 ))}
               </div>
             )}
+
+            {/* Live margin summary */}
+            {parseFloat(watchedPurchasePrice) > 0 && (
+              <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                  Margens sobre custo
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  {[
+                    { label: 'A', margin: marginA },
+                    { label: 'B', margin: marginB },
+                    { label: 'C', margin: marginC },
+                  ].map(({ label, margin }) => {
+                    const m = parseFloat(margin);
+                    const color = m >= 20 ? 'bg-green-100 text-green-700'
+                      : m >= 10 ? 'bg-amber-100 text-amber-700'
+                      : 'bg-red-100 text-red-700';
+                    return (
+                      <div key={label} className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-neutral-600">Tabela {label}</span>
+                        {m > 0 ? (
+                          <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${color}`}>
+                            {m.toFixed(1)}%
+                          </span>
+                        ) : (
+                          <span className="text-xs text-neutral-400">—</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </Card>
 

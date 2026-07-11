@@ -230,6 +230,12 @@ export function FinancialPage() {
                       Receber
                     </button>
                   )}
+                  {(entry.status === 'PENDENTE' || entry.status === 'VENCIDO') && entry.customerPhone && (
+                    <a href={buildWhatsAppUrl(entry)} target="_blank" rel="noopener noreferrer"
+                      className="rounded bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100">
+                      WhatsApp
+                    </a>
+                  )}
                   {entry.status !== 'PAGO' && (
                     <button onClick={() => openEdit(entry)}
                       className="rounded bg-neutral-100 px-2 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-200">
@@ -298,6 +304,12 @@ export function FinancialPage() {
                           className="rounded bg-green-100 px-2 py-1 text-xs font-medium text-green-700 hover:bg-green-200 disabled:opacity-50">
                           Receber
                         </button>
+                      )}
+                      {(entry.status === 'PENDENTE' || entry.status === 'VENCIDO') && entry.customerPhone && (
+                        <a href={buildWhatsAppUrl(entry)} target="_blank" rel="noopener noreferrer"
+                          className="rounded bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100">
+                          WhatsApp
+                        </a>
                       )}
                       {entry.status !== 'PAGO' && (
                         <button onClick={() => openEdit(entry)}
@@ -425,6 +437,15 @@ export function FinancialPage() {
       )}
     </div>
   );
+}
+
+function buildWhatsAppUrl(entry: FinancialEntryResponse): string {
+  const phone = entry.customerPhone!.replace(/\D/g, '');
+  const firstName = (entry.customerName ?? 'Cliente').split(' ')[0];
+  const amount = fmtCurrency(entry.amount);
+  const due = fmtDate(entry.dueDate);
+  const msg = `Olá ${firstName}, tudo bem?\n\nPassando para avisar que temos um título em aberto no valor de *${amount}* com vencimento em *${due}*.\n\nPodemos verificar a situação? Qualquer dúvida, estou à disposição! 😊`;
+  return `https://wa.me/55${phone}?text=${encodeURIComponent(msg)}`;
 }
 
 function SummaryCard({ label, value, accent, highlight }: {

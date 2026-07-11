@@ -202,6 +202,22 @@ export function CustomerDetailPage() {
         ))}
       </div>
 
+      {/* Overdue banner */}
+      {(customer.overdueAmount ?? 0) > 0 && (
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-md border border-red-300 bg-red-50 px-4 py-3">
+          <div className="flex items-center gap-2 text-sm text-red-800">
+            <span className="text-base">⚠️</span>
+            <span>
+              Cliente com <strong>{customer.overdueCount} título{customer.overdueCount !== 1 ? 's' : ''} em atraso</strong> totalizando{' '}
+              <strong>{formatCurrency(customer.overdueAmount ?? 0)}</strong>.
+            </span>
+          </div>
+          <Link to={`/admin/financeiro?status=VENCIDO`} className="shrink-0 text-xs font-medium text-red-700 hover:underline">
+            Ver financeiro →
+          </Link>
+        </div>
+      )}
+
       {activeTab === 'resumo' && (
         <div className="space-y-4">
           {cadenceMessage && (

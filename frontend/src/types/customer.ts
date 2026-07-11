@@ -60,6 +60,8 @@ export interface Customer {
   averageTicket: number | null;
   totalPurchased: number | null;
   lastPurchaseDate: string | null;
+  overdueAmount: number | null;
+  overdueCount: number;
   favoriteProducts: string[] | null;
 }
 

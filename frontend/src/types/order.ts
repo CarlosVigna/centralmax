@@ -38,6 +38,8 @@ export interface OrderResponse {
   paymentCondition: PaymentCondition;
   paymentConditionLabel: string;
   dueDate: string | null;
+  nfNumber: string | null;
+  estimatedDeliveryDate: string | null;
   financialStatus: FinancialStatus;
   notes: string | null;
   totalAmount: number;
@@ -57,6 +59,8 @@ export interface OrderRequest {
   customerName?: string;
   customerPhone?: string;
   notes?: string;
+  nfNumber?: string;
+  estimatedDeliveryDate?: string;
   items: OrderItemRequest[];
   paymentCondition?: PaymentCondition;
 }

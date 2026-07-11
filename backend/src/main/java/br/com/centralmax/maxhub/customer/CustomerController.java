@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -56,5 +57,10 @@ public class CustomerController {
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         customerService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/reactivate")
+    public ResponseEntity<List<CustomerResponse>> getReactivate() {
+        return ResponseEntity.ok(customerService.listReactivate());
     }
 }

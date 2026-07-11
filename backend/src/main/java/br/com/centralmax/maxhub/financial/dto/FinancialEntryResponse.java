@@ -19,5 +19,7 @@ public record FinancialEntryResponse(
         String orderNumber,
         String notes,
         Instant createdAt,
-        String category
+        String category,
+        String customerName,
+        String customerPhone
 ) {}

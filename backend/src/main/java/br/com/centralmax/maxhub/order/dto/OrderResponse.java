@@ -20,6 +20,8 @@ public record OrderResponse(
         PaymentCondition paymentCondition,
         String paymentConditionLabel,
         LocalDate dueDate,
+        String nfNumber,
+        LocalDate estimatedDeliveryDate,
         String financialStatus,
         String notes,
         BigDecimal totalAmount,

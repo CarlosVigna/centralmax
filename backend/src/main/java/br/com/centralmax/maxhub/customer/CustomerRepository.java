@@ -73,4 +73,24 @@ public interface CustomerRepository extends JpaRepository<Customer, UUID>, JpaSp
             LIMIT 3
             """, nativeQuery = true)
     List<String> findFavoriteProducts(@Param("customerId") UUID customerId);
+
+    @Query(value = """
+            SELECT COALESCE(SUM(fe.amount), 0) AS overdue_amount, COUNT(fe.id) AS overdue_count
+            FROM financial_entries fe
+            JOIN orders o ON fe.order_id = o.id
+            WHERE o.customer_id = :customerId
+            AND fe.status = 'PENDENTE'
+            AND fe.due_date < CURRENT_DATE
+            """, nativeQuery = true)
+    Object[] findOverdueData(@Param("customerId") UUID customerId);
+
+    @Query("SELECT c FROM Customer c WHERE c.active = true AND c.status = :status AND (c.lastPurchaseDate IS NULL OR c.lastPurchaseDate < :cutoffDate) ORDER BY c.lastPurchaseDate ASC")
+    java.util.List<Customer> findCustomersToReactivate(
+            @Param("status") CustomerStatus status,
+            @Param("cutoffDate") java.time.LocalDate cutoffDate);
+
+    @Query("SELECT COUNT(c) FROM Customer c WHERE c.active = true AND c.status = :status AND (c.lastPurchaseDate IS NULL OR c.lastPurchaseDate < :cutoffDate)")
+    long countCustomersToReactivate(
+            @Param("status") CustomerStatus status,
+            @Param("cutoffDate") java.time.LocalDate cutoffDate);
 }
