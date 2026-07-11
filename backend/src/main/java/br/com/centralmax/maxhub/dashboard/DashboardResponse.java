@@ -20,5 +20,8 @@ public record DashboardResponse(
         BigDecimal receivedToday,
         long schedulesToday,
         long schedulesTomorrow,
-        long overdueSchedules
+        long overdueSchedules,
+        BigDecimal billsDueToday,
+        BigDecimal billsDueThisWeek,
+        BigDecimal overdueBills
 ) {}

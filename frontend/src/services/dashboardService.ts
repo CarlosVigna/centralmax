@@ -19,6 +19,9 @@ export interface DashboardStats {
   schedulesToday: number;
   schedulesTomorrow: number;
   overdueSchedules: number;
+  billsDueToday: number;
+  billsDueThisWeek: number;
+  overdueBills: number;
 }
 
 export async function getDashboard(): Promise<DashboardStats> {

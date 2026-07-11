@@ -78,10 +78,18 @@ public class DashboardService {
         long schedulesTomorrow = contactScheduleRepository.countByScheduledDateAndStatus(now.plusDays(1), ContactScheduleStatus.PENDENTE);
         long overdueSchedules = contactScheduleRepository.countOverdue(now, ContactScheduleStatus.PENDENTE);
 
+        BigDecimal billsDueToday = financialEntryRepository.sumByTypeAndStatusAndDueDate(
+                FinancialEntryType.DESPESA, FinancialEntryStatus.PENDENTE, now);
+        BigDecimal billsDueThisWeek = financialEntryRepository.sumByTypeAndStatusAndDueDateBetween(
+                FinancialEntryType.DESPESA, FinancialEntryStatus.PENDENTE, now, now.plusDays(7));
+        BigDecimal overdueBills = financialEntryRepository.sumOverdue(
+                FinancialEntryType.DESPESA, FinancialEntryStatus.PENDENTE, now);
+
         return new DashboardResponse(activeProducts, totalCustomers, totalOrders,
                 pendingOrders, ordersOutForDelivery, ordersToday, contactsToday, overdueContacts,
                 saldoMes, aReceber,
                 ordersToConfirm, ordersToSeparate, overdueFinancial, receivableToday, receivedToday,
-                schedulesToday, schedulesTomorrow, overdueSchedules);
+                schedulesToday, schedulesTomorrow, overdueSchedules,
+                billsDueToday, billsDueThisWeek, overdueBills);
     }
 }

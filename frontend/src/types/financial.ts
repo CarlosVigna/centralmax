@@ -8,6 +8,7 @@ export interface FinancialEntryResponse {
   status: FinancialEntryStatus;
   statusLabel: string;
   description: string;
+  category: string | null;
   amount: number;
   dueDate: string;
   paidAt: string | null;
@@ -19,6 +20,7 @@ export interface FinancialEntryResponse {
 
 export interface FinancialEntryRequest {
   type: FinancialEntryType;
+  category?: string | null;
   description: string;
   amount: number;
   dueDate: string;
@@ -32,11 +34,13 @@ export interface FinancialSummaryResponse {
   receitas: number;
   despesas: number;
   vencidos: number;
+  receitasPendentes: number;
+  despesasPendentes: number;
 }
 
 export interface FinancialFilters {
   type?: FinancialEntryType;
-  status?: FinancialEntryStatus;
+  status?: FinancialEntryStatus | 'VENCIDO';
   startDate?: string;
   endDate?: string;
   page?: number;

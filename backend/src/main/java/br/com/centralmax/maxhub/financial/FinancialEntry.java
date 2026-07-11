@@ -62,6 +62,9 @@ public class FinancialEntry {
     @JoinColumn(name = "order_id")
     private Order order;
 
+    @Column(length = 100)
+    private String category;
+
     @Column(columnDefinition = "TEXT")
     private String notes;
 

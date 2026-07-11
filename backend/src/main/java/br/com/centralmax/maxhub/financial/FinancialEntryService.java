@@ -73,10 +73,15 @@ public class FinancialEntryService {
         BigDecimal saldoMes = receitas.subtract(despesas);
         BigDecimal aReceber = financialEntryRepository.sumByTypeAndStatus(
                 FinancialEntryType.RECEITA, FinancialEntryStatus.PENDENTE);
-        BigDecimal vencidos = financialEntryRepository.sumOverdue(
-                FinancialEntryType.RECEITA, FinancialEntryStatus.PENDENTE, now);
+        BigDecimal receitasPendentes = financialEntryRepository.sumByTypeAndStatus(
+                FinancialEntryType.RECEITA, FinancialEntryStatus.PENDENTE);
+        BigDecimal despesasPendentes = financialEntryRepository.sumByTypeAndStatus(
+                FinancialEntryType.DESPESA, FinancialEntryStatus.PENDENTE);
+        BigDecimal vencidos = financialEntryRepository.sumOverdueAllTypes(
+                FinancialEntryStatus.PENDENTE, now);
 
-        return new FinancialSummaryResponse(saldoMes, aReceber, receitas, despesas, vencidos);
+        return new FinancialSummaryResponse(saldoMes, aReceber, receitas, despesas, vencidos,
+                receitasPendentes, despesasPendentes);
     }
 
     @Transactional

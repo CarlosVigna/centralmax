@@ -15,5 +15,6 @@ public record FinancialEntryRequest(
         @NotNull @DecimalMin("0.01") BigDecimal amount,
         @NotNull LocalDate dueDate,
         UUID orderId,
-        String notes
+        String notes,
+        String category
 ) {}

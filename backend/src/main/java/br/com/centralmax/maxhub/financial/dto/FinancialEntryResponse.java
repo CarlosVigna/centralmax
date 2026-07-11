@@ -18,5 +18,6 @@ public record FinancialEntryResponse(
         UUID orderId,
         String orderNumber,
         String notes,
-        Instant createdAt
+        Instant createdAt,
+        String category
 ) {}

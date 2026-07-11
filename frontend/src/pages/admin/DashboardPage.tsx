@@ -130,6 +130,38 @@ export function DashboardPage() {
             </div>
           </section>
 
+          {/* ── Contas a Pagar ── */}
+          <section>
+            <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-neutral-400">
+              Contas a Pagar
+            </h2>
+            <div className="space-y-2">
+              <ActionItem
+                emoji="💸"
+                label="a pagar hoje"
+                count={data.billsDueToday}
+                isCurrency
+                danger
+                onClick={() => navigate('/admin/financeiro?type=DESPESA&status=PENDENTE')}
+              />
+              <ActionItem
+                emoji="📅"
+                label="vencem esta semana"
+                count={data.billsDueThisWeek}
+                isCurrency
+                onClick={() => navigate('/admin/financeiro?type=DESPESA&status=PENDENTE')}
+              />
+              <ActionItem
+                emoji="🔴"
+                label="contas vencidas"
+                count={data.overdueBills}
+                isCurrency
+                danger
+                onClick={() => navigate('/admin/financeiro?type=DESPESA&status=VENCIDO')}
+              />
+            </div>
+          </section>
+
           {/* ── CRM ── */}
           <section>
             <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-neutral-400">

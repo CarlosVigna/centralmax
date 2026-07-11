@@ -50,4 +50,18 @@ public interface FinancialEntryRepository extends JpaRepository<FinancialEntry, 
     BigDecimal sumByTypeAndStatusAndDueDate(@Param("type") FinancialEntryType type,
                                             @Param("status") FinancialEntryStatus status,
                                             @Param("date") LocalDate date);
+
+    @Query("SELECT COALESCE(SUM(f.amount), 0) FROM FinancialEntry f " +
+           "WHERE f.status = :status " +
+           "AND f.dueDate IS NOT NULL AND f.dueDate < :today")
+    BigDecimal sumOverdueAllTypes(@Param("status") FinancialEntryStatus status,
+                                  @Param("today") LocalDate today);
+
+    @Query("SELECT COALESCE(SUM(f.amount), 0) FROM FinancialEntry f " +
+           "WHERE f.type = :type AND f.status = :status " +
+           "AND f.dueDate >= :start AND f.dueDate <= :end")
+    BigDecimal sumByTypeAndStatusAndDueDateBetween(@Param("type") FinancialEntryType type,
+                                                   @Param("status") FinancialEntryStatus status,
+                                                   @Param("start") LocalDate start,
+                                                   @Param("end") LocalDate end);
 }
