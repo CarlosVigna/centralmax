@@ -31,9 +31,9 @@ public class CustomerService {
     private final ContactScheduleService contactScheduleService;
 
     @Transactional(readOnly = true)
-    public PageResponse<CustomerResponse> list(String search, CustomerStatus status, CustomerOrigin origin, int page, int size) {
+    public PageResponse<CustomerResponse> list(String search, CustomerStatus status, CustomerOrigin origin, Boolean active, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("name").ascending());
-        Page<Customer> result = customerRepository.findAll(buildSpec(search, status, origin), pageable);
+        Page<Customer> result = customerRepository.findAll(buildSpec(search, status, origin, active), pageable);
         return PageResponse.from(result.map(customerMapper::toResponse));
     }
 
@@ -170,10 +170,14 @@ public class CustomerService {
         return (email == null || email.isBlank()) ? null : email.trim().toLowerCase();
     }
 
-    private Specification<Customer> buildSpec(String search, CustomerStatus status, CustomerOrigin origin) {
+    private Specification<Customer> buildSpec(String search, CustomerStatus status, CustomerOrigin origin, Boolean active) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
-            predicates.add(cb.isTrue(root.get("active")));
+            if (active != null) {
+                predicates.add(active ? cb.isTrue(root.get("active")) : cb.isFalse(root.get("active")));
+            } else {
+                predicates.add(cb.isTrue(root.get("active")));
+            }
 
             if (search != null && !search.isBlank()) {
                 String pattern = "%" + search.toLowerCase() + "%";

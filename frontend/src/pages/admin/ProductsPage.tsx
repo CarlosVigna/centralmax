@@ -11,13 +11,16 @@ import { listAdminProducts, deleteProduct, duplicateProduct, activateProduct } f
 import { listAllCategories } from '../../services/categoryService';
 import { formatCurrency } from '../../utils/formatCurrency';
 import type { ProductAdmin } from '../../types/product';
+import { Pagination } from '../../components/ui/Pagination';
 
 export function ProductsPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'ATIVO' | 'INATIVO' | ''>('');
+  const [statusFilter, setStatusFilter] = useState<'ATIVO' | 'INATIVO' | ''>('ATIVO');
   const [categoryId, setCategoryId] = useState('');
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(20);
   const [confirmDelete, setConfirmDelete] = useState<ProductAdmin | null>(null);
   const [confirmDuplicate, setConfirmDuplicate] = useState<ProductAdmin | null>(null);
 
@@ -28,12 +31,14 @@ export function ProductsPage() {
   });
 
   const { data, isLoading } = useQuery({
-    queryKey: ['admin-products', { search, status: statusFilter || undefined, categoryId: categoryId || undefined }],
+    queryKey: ['admin-products', { search, status: statusFilter || undefined, categoryId: categoryId || undefined, page, size: pageSize }],
     queryFn: () =>
       listAdminProducts({
         search: search || undefined,
         status: statusFilter || undefined,
         categoryId: categoryId || undefined,
+        page,
+        size: pageSize,
       }),
   });
 
@@ -162,12 +167,12 @@ export function ProductsPage() {
         <Input
           placeholder="Buscar por nome..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => { setSearch(e.target.value); setPage(0); }}
           className="max-w-xs"
         />
         <select
           value={categoryId}
-          onChange={(e) => setCategoryId(e.target.value)}
+          onChange={(e) => { setCategoryId(e.target.value); setPage(0); }}
           className="rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-light"
         >
           <option value="">Todas as categorias</option>
@@ -177,12 +182,12 @@ export function ProductsPage() {
         </select>
         <select
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as 'ATIVO' | 'INATIVO' | '')}
+          onChange={(e) => { setStatusFilter(e.target.value as 'ATIVO' | 'INATIVO' | ''); setPage(0); }}
           className="rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-light"
         >
-          <option value="">Todos os status</option>
-          <option value="ATIVO">Ativos</option>
-          <option value="INATIVO">Inativos</option>
+          <option value="ATIVO">Apenas ativos</option>
+          <option value="INATIVO">Apenas inativos</option>
+          <option value="">Todos</option>
         </select>
       </div>
 
@@ -233,10 +238,15 @@ export function ProductsPage() {
               emptyMessage="Nenhum produto encontrado."
             />
           </div>
-          {data && data.totalPages > 1 && (
-            <p className="mt-3 text-xs text-neutral-600">
-              {data.totalElements} produto(s) no total
-            </p>
+          {data && (
+            <Pagination
+              page={page}
+              totalPages={data.totalPages}
+              totalElements={data.totalElements}
+              size={pageSize}
+              onPageChange={setPage}
+              onSizeChange={(s) => { setPageSize(s); setPage(0); }}
+            />
           )}
         </>
       )}

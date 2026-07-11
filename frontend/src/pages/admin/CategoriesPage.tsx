@@ -7,6 +7,7 @@ import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
+import { Pagination } from '../../components/ui/Pagination';
 import {
   activateCategory,
   createCategory,
@@ -20,11 +21,17 @@ interface CategoryFormValues {
   name: string;
 }
 
+type ActiveFilter = 'active' | 'inactive' | 'all';
+
+const PAGE_SIZE = 20;
+
 export function CategoriesPage() {
   const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<CategoryFull | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<CategoryFull | null>(null);
+  const [activeFilter, setActiveFilter] = useState<ActiveFilter>('active');
+  const [page, setPage] = useState(0);
 
   const { data = [], isLoading } = useQuery({
     queryKey: ['admin-categories'],
@@ -82,6 +89,15 @@ export function CategoriesPage() {
     saveMutation.mutate({ id: editing?.id, name: values.name });
   }
 
+  const filtered = data.filter((c) => {
+    if (activeFilter === 'active') return c.active;
+    if (activeFilter === 'inactive') return !c.active;
+    return true;
+  });
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
   const columns = [
     {
       header: 'Nome',
@@ -137,11 +153,30 @@ export function CategoriesPage() {
         <Button onClick={openCreate}>Nova categoria</Button>
       </div>
 
+      <div className="mb-4">
+        <select
+          value={activeFilter}
+          onChange={(e) => { setActiveFilter(e.target.value as ActiveFilter); setPage(0); }}
+          className="rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-light"
+        >
+          <option value="active">Apenas ativas</option>
+          <option value="inactive">Apenas inativas</option>
+          <option value="all">Todas</option>
+        </select>
+      </div>
+
       {isLoading ? (
         <p className="text-sm text-neutral-600">Carregando...</p>
       ) : (
         <div className="overflow-hidden rounded-lg border border-neutral-300 bg-white">
-          <Table columns={columns} data={data} emptyMessage="Nenhuma categoria cadastrada." />
+          <Table columns={columns} data={paged} emptyMessage="Nenhuma categoria cadastrada." />
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            totalElements={filtered.length}
+            size={PAGE_SIZE}
+            onPageChange={setPage}
+          />
         </div>
       )}
 

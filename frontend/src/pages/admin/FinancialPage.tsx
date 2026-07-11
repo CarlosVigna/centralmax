@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { Card } from '../../components/ui/Card';
+import { Pagination } from '../../components/ui/Pagination';
 import {
   createFinancialEntry,
   deleteFinancialEntry,
@@ -21,7 +22,8 @@ import type {
 const fmtCurrency = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
-const fmtDate = (s: string) => {
+const fmtDate = (s: string | null | undefined) => {
+  if (!s) return '—';
   const [y, m, d] = s.split('-');
   return `${d}/${m}/${y}`;
 };
@@ -232,11 +234,11 @@ export function FinancialPage() {
       <div className="mt-4 md:hidden">
         {isLoading ? (
           <p className="text-sm text-neutral-600">Carregando...</p>
-        ) : !entries?.content.length ? (
+        ) : !entries?.content?.length ? (
           <p className="text-sm text-neutral-600">Nenhum lançamento encontrado.</p>
         ) : (
           <div className="space-y-2">
-            {entries.content.map((entry) => (
+            {(entries.content ?? []).map((entry) => (
               <div key={entry.id} className="rounded-lg border border-neutral-200 bg-white px-4 py-3 space-y-1.5">
                 <div className="flex items-start justify-between gap-2">
                   <p className="text-sm font-medium text-neutral-900">{entry.description}</p>
@@ -276,13 +278,23 @@ export function FinancialPage() {
             ))}
           </div>
         )}
+        {entries && (
+          <Pagination
+            page={entries.page}
+            totalPages={entries.totalPages}
+            totalElements={entries.totalElements}
+            size={filters.size ?? 20}
+            onPageChange={(p) => setFilters((f) => ({ ...f, page: p }))}
+            onSizeChange={(s) => setFilters((f) => ({ ...f, size: s, page: 0 }))}
+          />
+        )}
       </div>
 
       {/* Table */}
       <div className="mt-4 hidden overflow-hidden rounded-lg border border-neutral-200 bg-white md:block">
         {isLoading ? (
           <p className="p-6 text-sm text-neutral-600">Carregando...</p>
-        ) : !entries?.content.length ? (
+        ) : !entries?.content?.length ? (
           <p className="p-6 text-sm text-neutral-600">Nenhum lançamento encontrado.</p>
         ) : (
           <table className="w-full text-sm">
@@ -298,7 +310,7 @@ export function FinancialPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
-              {entries.content.map((entry) => (
+              {(entries.content ?? []).map((entry) => (
                 <tr key={entry.id} className="hover:bg-neutral-50">
                   <td className="px-4 py-3 font-medium text-neutral-900">{entry.description}</td>
                   <td className="px-4 py-3">
@@ -355,32 +367,15 @@ export function FinancialPage() {
           </table>
         )}
 
-        {/* Pagination */}
-        {entries && entries.totalPages > 1 && (
-          <div className="flex items-center justify-between border-t border-neutral-200 px-4 py-3">
-            <p className="text-xs text-neutral-500">
-              {entries.totalElements} lançamentos
-            </p>
-            <div className="flex gap-2">
-              <button
-                disabled={entries.page === 0}
-                onClick={() => setFilters((f) => ({ ...f, page: (f.page ?? 1) - 1 }))}
-                className="rounded border border-neutral-300 px-3 py-1 text-xs disabled:opacity-40"
-              >
-                Anterior
-              </button>
-              <span className="px-2 py-1 text-xs text-neutral-600">
-                {entries.page + 1} / {entries.totalPages}
-              </span>
-              <button
-                disabled={entries.page + 1 >= entries.totalPages}
-                onClick={() => setFilters((f) => ({ ...f, page: (f.page ?? 0) + 1 }))}
-                className="rounded border border-neutral-300 px-3 py-1 text-xs disabled:opacity-40"
-              >
-                Próxima
-              </button>
-            </div>
-          </div>
+        {entries && (
+          <Pagination
+            page={entries.page}
+            totalPages={entries.totalPages}
+            totalElements={entries.totalElements}
+            size={filters.size ?? 20}
+            onPageChange={(p) => setFilters((f) => ({ ...f, page: p }))}
+            onSizeChange={(s) => setFilters((f) => ({ ...f, size: s, page: 0 }))}
+          />
         )}
       </div>
 

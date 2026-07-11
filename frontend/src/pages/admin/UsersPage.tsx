@@ -33,9 +33,17 @@ export function UsersPage() {
   const [editing, setEditing] = useState<UserResponse | null>(null);
   const [confirmDeactivate, setConfirmDeactivate] = useState<UserResponse | null>(null);
 
+  const [activeFilter, setActiveFilter] = useState<'active' | 'inactive' | 'all'>('active');
+
   const { data = [], isLoading } = useQuery({
     queryKey: ['admin-users'],
     queryFn: listUsers,
+  });
+
+  const filtered = data.filter((u) => {
+    if (activeFilter === 'active') return u.active;
+    if (activeFilter === 'inactive') return !u.active;
+    return true;
   });
 
   const {
@@ -160,11 +168,23 @@ export function UsersPage() {
         <Button onClick={openCreate}>Novo usuário</Button>
       </div>
 
+      <div className="mb-4">
+        <select
+          value={activeFilter}
+          onChange={(e) => setActiveFilter(e.target.value as 'active' | 'inactive' | 'all')}
+          className="rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-light"
+        >
+          <option value="active">Apenas ativos</option>
+          <option value="inactive">Apenas inativos</option>
+          <option value="all">Todos</option>
+        </select>
+      </div>
+
       {isLoading ? (
         <p className="text-sm text-neutral-600">Carregando...</p>
       ) : (
         <div className="overflow-hidden rounded-lg border border-neutral-300 bg-white">
-          <Table columns={columns} data={data} emptyMessage="Nenhum usuário cadastrado." />
+          <Table columns={columns} data={filtered} emptyMessage="Nenhum usuário cadastrado." />
         </div>
       )}
 

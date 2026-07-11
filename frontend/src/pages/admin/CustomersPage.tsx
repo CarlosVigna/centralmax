@@ -10,6 +10,7 @@ import { Input } from '../../components/ui/Input';
 import { deleteCustomer, listCustomers } from '../../services/customerService';
 import { STATUS_OPTIONS, ORIGIN_OPTIONS } from '../../types/customer';
 import type { Customer, CustomerOrigin, CustomerStatus } from '../../types/customer';
+import { Pagination } from '../../components/ui/Pagination';
 
 function statusVariant(status: CustomerStatus): 'neutral' | 'success' | 'danger' {
   if (status === 'ATIVO') return 'success';
@@ -50,15 +51,21 @@ export function CustomersPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<CustomerStatus | ''>('');
   const [originFilter, setOriginFilter] = useState<CustomerOrigin | ''>('');
+  const [activeFilter, setActiveFilter] = useState<'true' | 'false' | ''>('true');
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(20);
   const [confirmDelete, setConfirmDelete] = useState<Customer | null>(null);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['customers', { search, status: statusFilter || undefined, origin: originFilter || undefined }],
+    queryKey: ['customers', { search, status: statusFilter || undefined, origin: originFilter || undefined, active: activeFilter || undefined, page, size: pageSize }],
     queryFn: () =>
       listCustomers({
         search: search || undefined,
         status: statusFilter || undefined,
         origin: originFilter || undefined,
+        active: activeFilter === 'true' ? true : activeFilter === 'false' ? false : undefined,
+        page,
+        size: pageSize,
       }),
   });
 
@@ -144,12 +151,21 @@ export function CustomersPage() {
         <Input
           placeholder="Buscar por nome, e-mail ou telefone..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => { setSearch(e.target.value); setPage(0); }}
           className="max-w-sm"
         />
         <select
+          value={activeFilter}
+          onChange={(e) => { setActiveFilter(e.target.value as 'true' | 'false' | ''); setPage(0); }}
+          className="rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-light"
+        >
+          <option value="true">Apenas ativos</option>
+          <option value="false">Apenas inativos</option>
+          <option value="">Todos</option>
+        </select>
+        <select
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as CustomerStatus | '')}
+          onChange={(e) => { setStatusFilter(e.target.value as CustomerStatus | ''); setPage(0); }}
           className="rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-light"
         >
           <option value="">Todos os status</option>
@@ -159,7 +175,7 @@ export function CustomersPage() {
         </select>
         <select
           value={originFilter}
-          onChange={(e) => setOriginFilter(e.target.value as CustomerOrigin | '')}
+          onChange={(e) => { setOriginFilter(e.target.value as CustomerOrigin | ''); setPage(0); }}
           className="rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-light"
         >
           <option value="">Todas as origens</option>
@@ -210,10 +226,15 @@ export function CustomersPage() {
               emptyMessage="Nenhum cliente encontrado."
             />
           </div>
-          {data && data.totalElements > 0 && (
-            <p className="mt-3 text-xs text-neutral-600">
-              {data.totalElements} cliente(s) no total
-            </p>
+          {data && (
+            <Pagination
+              page={page}
+              totalPages={data.totalPages}
+              totalElements={data.totalElements}
+              size={pageSize}
+              onPageChange={setPage}
+              onSizeChange={(s) => { setPageSize(s); setPage(0); }}
+            />
           )}
         </>
       )}

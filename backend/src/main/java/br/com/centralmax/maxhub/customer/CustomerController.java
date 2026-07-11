@@ -31,9 +31,10 @@ public class CustomerController {
             @RequestParam(required = false) String search,
             @RequestParam(required = false) CustomerStatus status,
             @RequestParam(required = false) CustomerOrigin origin,
+            @RequestParam(required = false) Boolean active,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(customerService.list(search, status, origin, page, size));
+        return ResponseEntity.ok(customerService.list(search, status, origin, active, page, size));
     }
 
     @GetMapping("/{id}")

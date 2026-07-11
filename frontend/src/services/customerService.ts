@@ -6,6 +6,7 @@ export interface CustomerFilters {
   search?: string;
   status?: CustomerStatus;
   origin?: CustomerOrigin;
+  active?: boolean;
   page?: number;
   size?: number;
 }

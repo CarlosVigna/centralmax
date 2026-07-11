@@ -7,6 +7,7 @@ import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
+import { Pagination } from '../../components/ui/Pagination';
 import {
   activateSupplier,
   createSupplier,
@@ -17,11 +18,17 @@ import {
   type SupplierResponse,
 } from '../../services/supplierService';
 
+type ActiveFilter = 'active' | 'inactive' | 'all';
+
+const PAGE_SIZE = 20;
+
 export function SuppliersPage() {
   const qc = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<SupplierResponse | null>(null);
   const [confirmDeactivate, setConfirmDeactivate] = useState<SupplierResponse | null>(null);
+  const [activeFilter, setActiveFilter] = useState<ActiveFilter>('active');
+  const [page, setPage] = useState(0);
 
   const { data = [], isLoading } = useQuery({
     queryKey: ['admin-suppliers'],
@@ -80,6 +87,15 @@ export function SuppliersPage() {
     };
     saveMutation.mutate({ id: editing?.id, req });
   }
+
+  const filtered = data.filter((s) => {
+    if (activeFilter === 'active') return s.active;
+    if (activeFilter === 'inactive') return !s.active;
+    return true;
+  });
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   const columns = [
     {
@@ -148,11 +164,30 @@ export function SuppliersPage() {
         <Button onClick={openCreate}>Novo fornecedor</Button>
       </div>
 
+      <div className="mb-4">
+        <select
+          value={activeFilter}
+          onChange={(e) => { setActiveFilter(e.target.value as ActiveFilter); setPage(0); }}
+          className="rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-light"
+        >
+          <option value="active">Apenas ativos</option>
+          <option value="inactive">Apenas inativos</option>
+          <option value="all">Todos</option>
+        </select>
+      </div>
+
       {isLoading ? (
         <p className="text-sm text-neutral-600">Carregando...</p>
       ) : (
         <div className="overflow-hidden rounded-lg border border-neutral-300 bg-white">
-          <Table columns={columns} data={data} emptyMessage="Nenhum fornecedor cadastrado." />
+          <Table columns={columns} data={paged} emptyMessage="Nenhum fornecedor cadastrado." />
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            totalElements={filtered.length}
+            size={PAGE_SIZE}
+            onPageChange={setPage}
+          />
         </div>
       )}
 

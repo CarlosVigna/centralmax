@@ -19,6 +19,7 @@ import {
   STATUS_LABELS,
 } from '../../types/order';
 import type { OrderResponse, OrderStatus } from '../../types/order';
+import { Pagination } from '../../components/ui/Pagination';
 
 const TAB_FILTERS: { label: string; value: OrderStatus | '' }[] = [
   { label: 'Todos', value: '' },
@@ -66,15 +67,18 @@ export function OrdersPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<OrderStatus | ''>('');
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(20);
   const [confirmCancel, setConfirmCancel] = useState<OrderResponse | null>(null);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['orders', { status: activeTab || undefined, search: search || undefined }],
+    queryKey: ['orders', { status: activeTab || undefined, search: search || undefined, page, size: pageSize }],
     queryFn: () =>
       listOrders({
         status: activeTab || undefined,
         search: search || undefined,
-        size: 50,
+        page,
+        size: pageSize,
       }),
   });
 
@@ -231,7 +235,7 @@ export function OrdersPage() {
         {TAB_FILTERS.map((tab) => (
           <button
             key={tab.value}
-            onClick={() => setActiveTab(tab.value)}
+            onClick={() => { setActiveTab(tab.value); setPage(0); }}
             className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
               activeTab === tab.value
                 ? 'bg-primary text-white'
@@ -248,7 +252,7 @@ export function OrdersPage() {
         <Input
           placeholder="Buscar por nº pedido ou nome do cliente..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => { setSearch(e.target.value); setPage(0); }}
           className="max-w-sm"
         />
       </div>
@@ -303,10 +307,15 @@ export function OrdersPage() {
           <div className="hidden overflow-hidden rounded-lg border border-neutral-300 bg-white md:block">
             <Table columns={columns} data={orders} emptyMessage="Nenhum pedido encontrado." />
           </div>
-          {data && data.totalElements > 0 && (
-            <p className="mt-3 text-xs text-neutral-600">
-              {data.totalElements} pedido(s) no total
-            </p>
+          {data && (
+            <Pagination
+              page={page}
+              totalPages={data.totalPages}
+              totalElements={data.totalElements}
+              size={pageSize}
+              onPageChange={setPage}
+              onSizeChange={(s) => { setPageSize(s); setPage(0); }}
+            />
           )}
         </>
       )}
