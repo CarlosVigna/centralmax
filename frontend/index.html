@@ -3,16 +3,82 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MaxHub — Central Max Embalagens</title>
+    <title>MaxHub — CentralMax Embalagens</title>
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#f97316" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="MaxHub" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" href="/icons/icon-192.png" />
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <style>
+      #splash {
+        position: fixed;
+        inset: 0;
+        background: #0f1f3d;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        transition: opacity 0.5s ease;
+      }
+      #splash.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+      #splash-box {
+        animation: spin3d 1.5s ease-in-out infinite;
+        transform-origin: center;
+      }
+      @keyframes spin3d {
+        0%   { transform: rotateY(0deg) scale(1); }
+        25%  { transform: rotateY(90deg) scale(0.8); }
+        50%  { transform: rotateY(180deg) scale(1); }
+        75%  { transform: rotateY(270deg) scale(0.8); }
+        100% { transform: rotateY(360deg) scale(1); }
+      }
+      #splash-text {
+        color: white;
+        font-family: sans-serif;
+        font-size: 22px;
+        font-weight: 600;
+        margin-top: 20px;
+        letter-spacing: 1px;
+      }
+      #splash-sub {
+        color: #f97316;
+        font-family: sans-serif;
+        font-size: 13px;
+        margin-top: 6px;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+      }
+    </style>
   </head>
   <body>
+    <div id="splash">
+      <svg id="splash-box" width="80" height="80" viewBox="0 0 32 32">
+        <polygon points="16,2 30,9 16,16 2,9" fill="#f97316"/>
+        <polygon points="2,9 16,16 16,28 2,21" fill="#1e3a6e"/>
+        <polygon points="30,9 16,16 16,28 30,21" fill="#2a4f8f"/>
+      </svg>
+      <div id="splash-text">MaxHub</div>
+      <div id="splash-sub">CentralMax Embalagens</div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      window.addEventListener('load', function () {
+        setTimeout(function () {
+          var splash = document.getElementById('splash');
+          if (splash) {
+            splash.classList.add('hidden');
+            setTimeout(function () { splash.remove(); }, 500);
+          }
+        }, 800);
+      });
+    </script>
   </body>
 </html>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { Input } from '../../components/ui/Input';
@@ -15,6 +15,10 @@ export function LoginPage() {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   const { register, handleSubmit, formState } = useForm<LoginFormValues>();
+
+  useEffect(() => {
+    document.title = 'Login — MaxHub';
+  }, []);
 
   if (isAuthenticated) return <Navigate to="/admin" replace />;
 

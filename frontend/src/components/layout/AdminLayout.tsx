@@ -1,10 +1,26 @@
 import { useRef, useState, useEffect } from 'react';
-import { Link, Outlet } from 'react-router-dom';
+import { Link, Outlet, useLocation } from 'react-router-dom';
 import { AdminSidebar } from './AdminSidebar';
 import { GlobalSearch } from '../ui/GlobalSearch';
 import { useAuth } from '../../hooks/useAuth';
 import { useNotifications } from '../../hooks/useNotifications';
 import { Button } from '../ui/Button';
+
+const ADMIN_TITLES: Record<string, string> = {
+  '/admin': 'Dashboard — MaxHub',
+  '/admin/produtos': 'Produtos — MaxHub',
+  '/admin/categorias': 'Categorias — MaxHub',
+  '/admin/fornecedores': 'Fornecedores — MaxHub',
+  '/admin/clientes': 'Clientes — MaxHub',
+  '/admin/agenda': 'Agenda — MaxHub',
+  '/admin/expedicao': 'Expedição — MaxHub',
+  '/admin/financeiro': 'Financeiro — MaxHub',
+  '/admin/pedidos': 'Pedidos — MaxHub',
+  '/admin/romaneio': 'Romaneio — MaxHub',
+  '/admin/rota-entrega': 'Rota de Entrega — MaxHub',
+  '/admin/usuarios': 'Usuários — MaxHub',
+  '/admin/relatorios': 'Relatórios — MaxHub',
+};
 
 function formatDate(iso: string | null | undefined) {
   if (!iso) return '—';
@@ -36,6 +52,23 @@ export function AdminLayout() {
   const [showBell, setShowBell] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const bellRef = useRef<HTMLDivElement>(null);
+  const location = useLocation();
+
+  useEffect(() => {
+    const path = location.pathname;
+    const exact = ADMIN_TITLES[path];
+    if (exact) {
+      document.title = exact;
+    } else if (path.startsWith('/admin/pedidos/')) {
+      document.title = 'Pedido — MaxHub';
+    } else if (path.startsWith('/admin/clientes/')) {
+      document.title = 'Cliente — MaxHub';
+    } else if (path.startsWith('/admin/produtos/')) {
+      document.title = 'Produto — MaxHub';
+    } else {
+      document.title = 'MaxHub';
+    }
+  }, [location.pathname]);
 
   const badgeCount = (notifications?.newOrders ?? 0) + (notifications?.overdueContacts ?? 0) + (notifications?.schedulesToday ?? 0);
 
