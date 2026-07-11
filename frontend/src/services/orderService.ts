@@ -43,3 +43,8 @@ export async function duplicateOrder(id: string): Promise<OrderResponse> {
   const { data } = await api.post<OrderResponse>(`/orders/${id}/duplicate`);
   return data;
 }
+
+export async function revertOrderStatus(id: string): Promise<OrderResponse> {
+  const { data } = await api.patch<OrderResponse>(`/orders/${id}/revert-status`);
+  return data;
+}

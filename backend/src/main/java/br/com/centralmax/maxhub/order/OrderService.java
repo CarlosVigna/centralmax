@@ -323,6 +323,36 @@ public class OrderService {
     }
 
     @Transactional
+    public OrderResponse revertStatus(UUID id) {
+        Order order = findOrThrow(id);
+        OrderStatus current = order.getStatus();
+
+        if (current == OrderStatus.NOVO) {
+            throw new BusinessException("Pedido NOVO não pode ter o status revertido");
+        }
+        if (current == OrderStatus.CANCELADO) {
+            throw new BusinessException("Pedido CANCELADO não pode ter o status revertido");
+        }
+
+        int idx = STATUS_ORDER.indexOf(current);
+        OrderStatus previous = STATUS_ORDER.get(idx - 1);
+
+        if (current == OrderStatus.CONCLUIDO) {
+            financialEntryService.revertPaidByOrderId(id);
+            if (order.getCustomer() != null) {
+                customerService.updateCustomerStats(order.getCustomer().getId());
+            }
+        } else if (current == OrderStatus.CONFIRMADO) {
+            financialEntryService.deleteByOrderId(id);
+            order.setDueDate(null);
+        }
+
+        order.setStatus(previous);
+        order = orderRepository.save(order);
+        return orderMapper.toResponse(order);
+    }
+
+    @Transactional
     public void delete(UUID id) {
         Order order = findOrThrow(id);
         if (order.getStatus() != OrderStatus.NOVO && order.getStatus() != OrderStatus.CANCELADO) {

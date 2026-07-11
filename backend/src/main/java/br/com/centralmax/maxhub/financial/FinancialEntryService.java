@@ -173,6 +173,22 @@ public class FinancialEntryService {
         });
     }
 
+    @Transactional
+    public void revertPaidByOrderId(UUID orderId) {
+        financialEntryRepository.findFirstByOrderId(orderId).ifPresent(entry -> {
+            if (entry.getStatus() == FinancialEntryStatus.PAGO) {
+                entry.setStatus(FinancialEntryStatus.PENDENTE);
+                entry.setPaidAt(null);
+                financialEntryRepository.save(entry);
+            }
+        });
+    }
+
+    @Transactional
+    public void deleteByOrderId(UUID orderId) {
+        financialEntryRepository.findFirstByOrderId(orderId).ifPresent(financialEntryRepository::delete);
+    }
+
     private FinancialEntry findOrThrow(UUID id) {
         return financialEntryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Lançamento financeiro não encontrado"));

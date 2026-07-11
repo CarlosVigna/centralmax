@@ -90,6 +90,11 @@ public class OrderController {
         return ResponseEntity.ok(orderService.updateStatus(id, request));
     }
 
+    @PatchMapping("/{id}/revert-status")
+    public ResponseEntity<OrderResponse> revertStatus(@PathVariable UUID id) {
+        return ResponseEntity.ok(orderService.revertStatus(id));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         orderService.delete(id);

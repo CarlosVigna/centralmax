@@ -1,13 +1,15 @@
 import axios from 'axios';
+import { useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Table } from '../../components/ui/Table';
-import { getOrder, updateOrderStatus, duplicateOrder } from '../../services/orderService';
+import { getOrder, updateOrderStatus, duplicateOrder, revertOrderStatus } from '../../services/orderService';
 import {
   nextStatus,
+  previousStatus,
   STATUS_BADGE_VARIANT,
   STATUS_LABELS,
 } from '../../types/order';
@@ -80,6 +82,17 @@ export function OrderDetailPage() {
     onSuccess: (newOrder) => navigate(`/admin/pedidos/${newOrder.id}`),
   });
 
+  const [revertConfirm, setRevertConfirm] = useState(false);
+
+  const revertMutation = useMutation({
+    mutationFn: () => revertOrderStatus(id!),
+    onSuccess: () => {
+      setRevertConfirm(false);
+      queryClient.invalidateQueries({ queryKey: ['order', id] });
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+    },
+  });
+
   const itemColumns = [
     {
       header: 'Produto',
@@ -132,8 +145,10 @@ export function OrderDetailPage() {
   }
 
   const next = nextStatus(order.status);
+  const prev = previousStatus(order.status);
   const canCancel = order.status !== 'CONCLUIDO' && order.status !== 'CANCELADO';
   const canEdit = order.status === 'NOVO' || order.status === 'CONFIRMADO';
+  const canRevert = order.status !== 'NOVO' && order.status !== 'CANCELADO';
   const hasPhone = Boolean(order.customerDisplayPhone);
 
   return (
@@ -270,7 +285,7 @@ export function OrderDetailPage() {
         </div>
       </Card>
 
-      {(next || canCancel) && (
+      {(next || canCancel || canRevert) && (
         <div className="flex flex-wrap gap-3">
           {next && (
             <Button
@@ -289,6 +304,16 @@ export function OrderDetailPage() {
               Cancelar pedido
             </Button>
           )}
+          {canRevert && (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={revertMutation.isPending}
+              onClick={() => setRevertConfirm(true)}
+            >
+              ← Voltar status
+            </Button>
+          )}
           {(advanceMutation.isError || cancelMutation.isError) && (
             <p className="self-center text-sm text-danger">
               {axios.isAxiosError(advanceMutation.error ?? cancelMutation.error)
@@ -297,6 +322,38 @@ export function OrderDetailPage() {
                 : 'Erro ao atualizar status.'}
             </p>
           )}
+        </div>
+      )}
+
+      {revertConfirm && prev && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-lg">
+            <h3 className="text-base font-semibold text-neutral-900">Voltar status do pedido</h3>
+            <p className="mt-2 text-sm text-neutral-600">
+              Deseja voltar o pedido de{' '}
+              <strong>{STATUS_LABELS[order.status]}</strong> para{' '}
+              <strong>{STATUS_LABELS[prev]}</strong>?
+            </p>
+            {revertMutation.isError && (
+              <p className="mt-2 text-sm text-danger">
+                {axios.isAxiosError(revertMutation.error)
+                  ? (revertMutation.error as any)?.response?.data?.message ?? 'Erro ao reverter status.'
+                  : 'Erro ao reverter status.'}
+              </p>
+            )}
+            <div className="mt-4 flex justify-end gap-3">
+              <Button variant="outline" size="sm" onClick={() => setRevertConfirm(false)}>
+                Cancelar
+              </Button>
+              <Button
+                size="sm"
+                disabled={revertMutation.isPending}
+                onClick={() => revertMutation.mutate()}
+              >
+                Confirmar
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>

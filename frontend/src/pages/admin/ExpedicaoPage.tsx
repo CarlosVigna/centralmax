@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getBoardOrders } from '../../services/expeditionService';
-import { updateOrderStatus } from '../../services/orderService';
+import { updateOrderStatus, revertOrderStatus } from '../../services/orderService';
 import { formatCurrency } from '../../utils/formatCurrency';
 import type { OrderResponse, OrderStatus } from '../../types/order';
-import { nextStatus } from '../../types/order';
+import { nextStatus, previousStatus, STATUS_LABELS } from '../../types/order';
 
 const BOARD_COLUMNS: { status: OrderStatus; label: string }[] = [
   { status: 'NOVO', label: 'Novo' },
@@ -33,6 +33,8 @@ function secondsSince(ts: number): number {
 export function ExpedicaoPage() {
   const queryClient = useQueryClient();
   const [advancingId, setAdvancingId] = useState<string | null>(null);
+  const [revertingId, setRevertingId] = useState<string | null>(null);
+  const [confirmRevert, setConfirmRevert] = useState<OrderResponse | null>(null);
 
   const {
     data: orders = [],
@@ -56,6 +58,16 @@ export function ExpedicaoPage() {
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
     onSettled: () => setAdvancingId(null),
+  });
+
+  const revertMutation = useMutation({
+    mutationFn: ({ id }: { id: string }) => revertOrderStatus(id),
+    onSuccess: () => {
+      setConfirmRevert(null);
+      queryClient.invalidateQueries({ queryKey: ['board'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+    onSettled: () => setRevertingId(null),
   });
 
   function handleAdvance(order: OrderResponse) {
@@ -104,6 +116,43 @@ export function ExpedicaoPage() {
         <p className="text-sm text-danger">Erro ao carregar pedidos. Tente novamente.</p>
       )}
 
+      {confirmRevert && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-lg">
+            <h3 className="text-base font-semibold text-neutral-900">Voltar status do pedido</h3>
+            <p className="mt-2 text-sm text-neutral-600">
+              Deseja voltar o pedido{' '}
+              <strong>{confirmRevert.orderNumber}</strong> de{' '}
+              <strong>{STATUS_LABELS[confirmRevert.status]}</strong> para{' '}
+              <strong>{STATUS_LABELS[previousStatus(confirmRevert.status)!]}</strong>?
+            </p>
+            {revertMutation.isError && (
+              <p className="mt-2 text-sm text-red-600">Erro ao reverter status. Tente novamente.</p>
+            )}
+            <div className="mt-4 flex justify-end gap-3">
+              <button
+                onClick={() => setConfirmRevert(null)}
+                className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium
+                  text-neutral-700 transition hover:bg-neutral-50"
+              >
+                Cancelar
+              </button>
+              <button
+                disabled={revertMutation.isPending}
+                onClick={() => {
+                  setRevertingId(confirmRevert.id);
+                  revertMutation.mutate({ id: confirmRevert.id });
+                }}
+                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white
+                  transition hover:opacity-90 disabled:opacity-50"
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Kanban Board */}
       <div className="flex gap-4 overflow-x-auto pb-4">
         {BOARD_COLUMNS.map(({ status, label }) => {
@@ -134,6 +183,10 @@ export function ExpedicaoPage() {
                       order={order}
                       isAdvancing={advancingId === order.id}
                       onAdvance={() => handleAdvance(order)}
+                      isReverting={revertingId === order.id}
+                      onRevert={order.status !== 'NOVO' && order.status !== 'CANCELADO'
+                        ? () => setConfirmRevert(order)
+                        : undefined}
                     />
                   ))
                 )}
@@ -150,16 +203,18 @@ interface OrderCardProps {
   order: OrderResponse;
   isAdvancing: boolean;
   onAdvance: () => void;
+  isReverting?: boolean;
+  onRevert?: () => void;
 }
 
-function OrderCard({ order, isAdvancing, onAdvance }: OrderCardProps) {
+function OrderCard({ order, isAdvancing, onAdvance, isReverting, onRevert }: OrderCardProps) {
   const next = nextStatus(order.status);
   const canAdvance = next !== null && next !== 'CONCLUIDO';
 
   return (
     <div
       className={`rounded-lg bg-white p-3 shadow-sm transition-all duration-200
-        ${isAdvancing ? 'opacity-40 scale-95' : 'opacity-100 scale-100'}`}
+        ${isAdvancing || isReverting ? 'opacity-40 scale-95' : 'opacity-100 scale-100'}`}
     >
       <p className="text-sm font-bold text-primary">{order.orderNumber}</p>
 
@@ -177,6 +232,17 @@ function OrderCard({ order, isAdvancing, onAdvance }: OrderCardProps) {
       <p className="mt-1 text-xs text-neutral-400">{timeAgo(order.createdAt)}</p>
 
       <div className="mt-3 flex gap-2">
+        {onRevert && (
+          <button
+            onClick={onRevert}
+            disabled={isReverting}
+            title="Voltar status"
+            className="flex-none rounded-md border border-neutral-200 px-2 py-1.5 text-xs
+              text-neutral-500 transition hover:bg-neutral-50 disabled:opacity-50"
+          >
+            ←
+          </button>
+        )}
         {canAdvance && (
           <button
             onClick={onAdvance}

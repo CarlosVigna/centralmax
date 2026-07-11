@@ -39,6 +39,9 @@ export function LoginPage() {
           Entrar
         </Button>
       </form>
+      <p className="mt-6 text-center text-sm text-neutral-400">
+        <a href="/" className="hover:text-neutral-600 transition">← Voltar ao site</a>
+      </p>
     </section>
   );
 }

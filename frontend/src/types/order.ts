@@ -106,3 +106,9 @@ export function nextStatus(current: OrderStatus): OrderStatus | null {
   if (idx < 0 || idx === STATUS_FLOW.length - 1) return null;
   return STATUS_FLOW[idx + 1];
 }
+
+export function previousStatus(current: OrderStatus): OrderStatus | null {
+  const idx = STATUS_FLOW.indexOf(current);
+  if (idx <= 0) return null;
+  return STATUS_FLOW[idx - 1];
+}
