@@ -1,3 +1,24 @@
+export interface OrderTrackingItem {
+  productName: string;
+  quantity: number;
+}
+
+export interface OrderTrackingTimelineEntry {
+  status: string;
+  label: string;
+  date: string;
+}
+
+export interface OrderTrackingResponse {
+  orderNumber: string;
+  customerName: string;
+  status: string;
+  statusLabel: string;
+  estimatedDeliveryDate: string | null;
+  items: OrderTrackingItem[];
+  timeline: OrderTrackingTimelineEntry[];
+}
+
 export type OrderStatus =
   | 'NOVO'
   | 'CONFIRMADO'

@@ -3,6 +3,7 @@ package br.com.centralmax.maxhub.order;
 import br.com.centralmax.maxhub.common.response.PageResponse;
 import br.com.centralmax.maxhub.order.dto.OrderRequest;
 import br.com.centralmax.maxhub.order.dto.OrderResponse;
+import br.com.centralmax.maxhub.order.dto.OrderTrackingResponse;
 import br.com.centralmax.maxhub.order.dto.PurchaseListResponse;
 import br.com.centralmax.maxhub.order.dto.DeliveryRouteResponse;
 import java.util.List;
@@ -32,6 +33,11 @@ import java.util.UUID;
 public class OrderController {
 
     private final OrderService orderService;
+
+    @GetMapping("/track/{orderNumber}")
+    public ResponseEntity<OrderTrackingResponse> track(@PathVariable String orderNumber) {
+        return ResponseEntity.ok(orderService.getTracking(orderNumber));
+    }
 
     @GetMapping("/board")
     public ResponseEntity<List<OrderResponse>> getBoard() {

@@ -20,6 +20,7 @@ const ADMIN_TITLES: Record<string, string> = {
   '/admin/rota-entrega': 'Rota de Entrega — MaxHub',
   '/admin/usuarios': 'Usuários — MaxHub',
   '/admin/relatorios': 'Relatórios — MaxHub',
+  '/admin/previsao': 'Previsão Semanal — MaxHub',
 };
 
 function formatDate(iso: string | null | undefined) {

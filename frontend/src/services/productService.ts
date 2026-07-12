@@ -1,5 +1,5 @@
 import { api } from './api';
-import type { ProductAdmin, ProductDetail, ProductRequest, ProductSummary } from '../types/product';
+import type { ProductAdmin, ProductDetail, ProductRequest, ProductSummary, VolumeDiscount, PriceHistory, ImportResult } from '../types/product';
 
 export interface ProductFilters {
   categoryId?: string;
@@ -70,5 +70,36 @@ export async function duplicateProduct(
   const { data } = await api.post<ProductAdmin>(
     `/products/${id}/duplicate?copyPhotos=${copyPhotos}`,
   );
+  return data;
+}
+
+export async function getProductDiscounts(productId: string): Promise<VolumeDiscount[]> {
+  const { data } = await api.get<VolumeDiscount[]>(`/products/${productId}/discounts`);
+  return data;
+}
+
+export async function createProductDiscount(
+  productId: string,
+  request: { minQuantity: number; discountPercent: number },
+): Promise<VolumeDiscount> {
+  const { data } = await api.post<VolumeDiscount>(`/products/${productId}/discounts`, request);
+  return data;
+}
+
+export async function deleteProductDiscount(productId: string, discountId: string): Promise<void> {
+  await api.delete(`/products/${productId}/discounts/${discountId}`);
+}
+
+export async function getProductPriceHistory(productId: string): Promise<PriceHistory[]> {
+  const { data } = await api.get<PriceHistory[]>(`/products/${productId}/price-history`);
+  return data;
+}
+
+export async function importProductsCsv(file: File): Promise<ImportResult> {
+  const form = new FormData();
+  form.append('file', file);
+  const { data } = await api.post<ImportResult>('/products/import', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
   return data;
 }

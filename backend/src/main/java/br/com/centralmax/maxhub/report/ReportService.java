@@ -5,6 +5,7 @@ import br.com.centralmax.maxhub.order.OrderRepository;
 import br.com.centralmax.maxhub.order.OrderStatus;
 import br.com.centralmax.maxhub.report.dto.CustomerReportResponse;
 import br.com.centralmax.maxhub.report.dto.SalesReportResponse;
+import br.com.centralmax.maxhub.report.dto.WeeklyForecastResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +15,7 @@ import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -105,6 +107,48 @@ public class ReportService {
                 .toList();
 
         return new CustomerReportResponse(totalCustomers, newCustomers, byStatus, byOrigin, topCustomers);
+    }
+
+    @Transactional(readOnly = true)
+    public WeeklyForecastResponse getWeeklyForecast() {
+        Instant now = Instant.now();
+        Instant start30 = now.minusSeconds(30L * 24 * 3600);
+        Instant start15 = now.minusSeconds(15L * 24 * 3600);
+
+        List<WeeklyForecastResponse.ForecastItem> items = orderRepository
+                .findWeeklyForecastData(start30, start15)
+                .stream()
+                .map(row -> {
+                    String productId   = row[0].toString();
+                    String productName = (String) row[1];
+                    String sku         = row[2] != null ? (String) row[2] : "";
+                    int    total30     = ((Number) row[3]).intValue();
+                    int    last15      = ((Number) row[4]).intValue();
+                    int    prev15      = ((Number) row[5]).intValue();
+
+                    double avgDaily   = total30 / 30.0;
+                    int    forecast   = (int) Math.ceil(avgDaily * 7);
+
+                    String trend;
+                    if (prev15 == 0) {
+                        trend = last15 > 0 ? "UP" : "STABLE";
+                    } else {
+                        double ratio = (double) last15 / prev15;
+                        trend = ratio >= 1.1 ? "UP" : ratio <= 0.9 ? "DOWN" : "STABLE";
+                    }
+
+                    return new WeeklyForecastResponse.ForecastItem(
+                            productId, productName, sku,
+                            Math.round(avgDaily * 100.0) / 100.0,
+                            forecast, total30, trend);
+                })
+                .toList();
+
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        String period = today.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                + " – " + today.plusDays(6).format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+
+        return new WeeklyForecastResponse(period, items);
     }
 
     private BigDecimal toBigDecimal(Object value) {

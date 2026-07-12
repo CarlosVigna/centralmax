@@ -60,3 +60,23 @@ export async function getCustomerReport(
   });
   return data;
 }
+
+export interface ForecastItem {
+  productId: string;
+  productName: string;
+  sku: string;
+  avgDailyQty: number;
+  forecastQty: number;
+  lastMonthQty: number;
+  trend: 'UP' | 'DOWN' | 'STABLE';
+}
+
+export interface WeeklyForecastResponse {
+  period: string;
+  items: ForecastItem[];
+}
+
+export async function getWeeklyForecast(): Promise<WeeklyForecastResponse> {
+  const { data } = await api.get<WeeklyForecastResponse>('/reports/weekly-forecast');
+  return data;
+}

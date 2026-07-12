@@ -86,6 +86,12 @@ const IconUserCog = () => (
     <circle cx="12" cy="7" r="4" />
   </svg>
 );
+const IconTrend = () => (
+  <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+    <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
+    <polyline points="16 7 22 7 22 13" />
+  </svg>
+);
 const IconX = () => (
   <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
     <path d="M18 6L6 18M6 6l12 12" />
@@ -102,6 +108,7 @@ const NAV_GROUPS: NavGroup[] = [
       { to: '/admin/romaneio', label: 'Romaneio', icon: <IconBox /> },
       { to: '/admin/rota-entrega', label: 'Rota de Entrega', icon: <IconTruck /> },
       { to: '/admin/agenda', label: 'Agenda', icon: <IconCalendar /> },
+      { to: '/admin/previsao', label: 'Previsão Semanal', icon: <IconTrend /> },
     ],
   },
   {

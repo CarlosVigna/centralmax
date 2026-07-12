@@ -26,6 +26,8 @@ import { UsersPage } from '../pages/admin/UsersPage';
 import { ReportsPage } from '../pages/admin/ReportsPage';
 import { RomaneioPage } from '../pages/admin/RomaneioPage';
 import { DeliveryRoutePage } from '../pages/admin/DeliveryRoutePage';
+import { WeeklyForecastPage } from '../pages/admin/WeeklyForecastPage';
+import { OrderTrackingPage } from '../pages/public/OrderTrackingPage';
 
 export function AppRoutes() {
   return (
@@ -35,6 +37,7 @@ export function AppRoutes() {
         <Route path="/catalogo" element={<CatalogPage />} />
         <Route path="/catalogo/:id" element={<ProductDetailPage />} />
         <Route path="/orcamento" element={<CartPage />} />
+        <Route path="/rastrear" element={<OrderTrackingPage />} />
       </Route>
 
       <Route path="/admin/login" element={<LoginPage />} />
@@ -62,6 +65,7 @@ export function AppRoutes() {
           <Route path="rota-entrega" element={<DeliveryRoutePage />} />
           <Route path="usuarios" element={<UsersPage />} />
           <Route path="relatorios" element={<ReportsPage />} />
+          <Route path="previsao" element={<WeeklyForecastPage />} />
         </Route>
       </Route>
 

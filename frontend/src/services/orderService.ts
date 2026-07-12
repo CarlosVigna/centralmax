@@ -1,5 +1,6 @@
+import axios from 'axios';
 import { api } from './api';
-import type { OrderRequest, OrderResponse, OrderStatus } from '../types/order';
+import type { OrderRequest, OrderResponse, OrderStatus, OrderTrackingResponse } from '../types/order';
 import type { PageResponse } from './productService';
 
 export interface OrderFilters {
@@ -46,5 +47,12 @@ export async function duplicateOrder(id: string): Promise<OrderResponse> {
 
 export async function revertOrderStatus(id: string): Promise<OrderResponse> {
   const { data } = await api.patch<OrderResponse>(`/orders/${id}/revert-status`);
+  return data;
+}
+
+const publicApi = axios.create({ baseURL: import.meta.env.VITE_API_URL });
+
+export async function trackOrder(orderNumber: string): Promise<OrderTrackingResponse> {
+  const { data } = await publicApi.get<OrderTrackingResponse>(`/orders/track/${orderNumber}`);
   return data;
 }

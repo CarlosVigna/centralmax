@@ -12,8 +12,17 @@ import { ProductVariationEditor } from '../../components/admin/ProductVariationE
 import { ProductCardPreview } from '../../components/admin/ProductCardPreview';
 import { listCategories } from '../../services/categoryService';
 import { listSuppliers } from '../../services/supplierService';
-import { createProduct, getAdminProduct, updateProduct } from '../../services/productService';
+import {
+  createProduct, getAdminProduct, updateProduct,
+  getProductDiscounts, createProductDiscount, deleteProductDiscount,
+  getProductPriceHistory,
+} from '../../services/productService';
 import type { ProductRequest } from '../../types/product';
+
+function fmtPrice(v: number | null | undefined) {
+  if (v == null) return '—';
+  return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
 
 interface ProductFormValues {
   sku: string;
@@ -55,6 +64,9 @@ export function ProductFormPage() {
   const [marginA, setMarginA] = useState('5.0');
   const [marginB, setMarginB] = useState('10.0');
   const [marginC, setMarginC] = useState('15.0');
+  const [discountMinQty, setDiscountMinQty] = useState('');
+  const [discountPercent, setDiscountPercent] = useState('');
+  const [showPriceHistory, setShowPriceHistory] = useState(false);
 
   const { data: categories = [] } = useQuery({
     queryKey: ['categories'],
@@ -72,6 +84,31 @@ export function ProductFormPage() {
     queryKey: productQueryKey,
     queryFn: () => getAdminProduct(id!),
     enabled: isEditing,
+  });
+
+  const { data: discounts = [], refetch: refetchDiscounts } = useQuery({
+    queryKey: ['product-discounts', id],
+    queryFn: () => getProductDiscounts(id!),
+    enabled: isEditing,
+  });
+
+  const { data: priceHistory = [] } = useQuery({
+    queryKey: ['product-price-history', id],
+    queryFn: () => getProductPriceHistory(id!),
+    enabled: isEditing && showPriceHistory,
+  });
+
+  const addDiscountMutation = useMutation({
+    mutationFn: () => createProductDiscount(id!, {
+      minQuantity: parseInt(discountMinQty),
+      discountPercent: parseFloat(discountPercent),
+    }),
+    onSuccess: () => { refetchDiscounts(); setDiscountMinQty(''); setDiscountPercent(''); },
+  });
+
+  const deleteDiscountMutation = useMutation({
+    mutationFn: (discountId: string) => deleteProductDiscount(id!, discountId),
+    onSuccess: () => refetchDiscounts(),
   });
 
   const { register, handleSubmit, reset, control, setValue, formState } = useForm<ProductFormValues>({
@@ -522,6 +559,139 @@ export function ProductFormPage() {
               variations={existing?.variations ?? []}
               queryKey={productQueryKey}
             />
+          </Card>
+        )}
+
+        {/* ── Descontos por Volume (só na edição) ── */}
+        {isEditing && id && (
+          <Card>
+            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-neutral-500">
+              Descontos por Volume
+            </h2>
+            {discounts.length > 0 && (
+              <table className="mb-4 w-full text-sm">
+                <thead>
+                  <tr className="border-b border-neutral-100 text-left text-xs text-neutral-500">
+                    <th className="pb-2 font-medium">Qtd. mínima</th>
+                    <th className="pb-2 font-medium">Desconto</th>
+                    <th className="pb-2" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {discounts.map((d) => (
+                    <tr key={d.id} className="border-b border-neutral-50">
+                      <td className="py-2">{d.minQuantity} un.</td>
+                      <td className="py-2 text-green-700 font-medium">{d.discountPercent}%</td>
+                      <td className="py-2 text-right">
+                        <button
+                          type="button"
+                          onClick={() => deleteDiscountMutation.mutate(d.id)}
+                          className="text-xs text-danger hover:underline"
+                        >
+                          Remover
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            <div className="flex items-end gap-2">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-neutral-500">Qtd. mínima</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={discountMinQty}
+                  onChange={(e) => setDiscountMinQty(e.target.value)}
+                  placeholder="100"
+                  className="w-24 rounded-md border border-neutral-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-light"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-neutral-500">Desconto %</label>
+                <input
+                  type="number"
+                  min={0.01}
+                  max={100}
+                  step={0.01}
+                  value={discountPercent}
+                  onChange={(e) => setDiscountPercent(e.target.value)}
+                  placeholder="5.00"
+                  className="w-24 rounded-md border border-neutral-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-light"
+                />
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                disabled={!discountMinQty || !discountPercent || addDiscountMutation.isPending}
+                onClick={() => addDiscountMutation.mutate()}
+              >
+                Adicionar
+              </Button>
+            </div>
+          </Card>
+        )}
+
+        {/* ── Histórico de Preços (só na edição) ── */}
+        {isEditing && id && (
+          <Card>
+            <button
+              type="button"
+              onClick={() => setShowPriceHistory((v) => !v)}
+              className="flex w-full items-center justify-between text-sm font-semibold uppercase tracking-wide text-neutral-500"
+            >
+              <span>Histórico de Preços</span>
+              <span>{showPriceHistory ? '▲' : '▼'}</span>
+            </button>
+            {showPriceHistory && (
+              <div className="mt-4 overflow-x-auto">
+                {priceHistory.length === 0 ? (
+                  <p className="text-xs text-neutral-400">Nenhuma alteração de preço registrada.</p>
+                ) : (
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-neutral-100 text-left text-neutral-500">
+                        <th className="pb-2 font-medium">Data</th>
+                        <th className="pb-2 font-medium">Custo</th>
+                        <th className="pb-2 font-medium">Preço A</th>
+                        <th className="pb-2 font-medium">Preço B</th>
+                        <th className="pb-2 font-medium">Preço C</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {priceHistory.map((h) => (
+                        <tr key={h.id} className="border-b border-neutral-50">
+                          <td className="py-1.5 pr-3 whitespace-nowrap">
+                            {new Date(h.changedAt).toLocaleString('pt-BR')}
+                          </td>
+                          <td className="py-1.5 pr-3">
+                            <span className="text-neutral-400">{fmtPrice(h.oldPurchasePrice)}</span>
+                            {' → '}
+                            <span className="font-medium">{fmtPrice(h.newPurchasePrice)}</span>
+                          </td>
+                          <td className="py-1.5 pr-3">
+                            <span className="text-neutral-400">{fmtPrice(h.oldPriceA)}</span>
+                            {' → '}
+                            <span className="font-medium">{fmtPrice(h.newPriceA)}</span>
+                          </td>
+                          <td className="py-1.5 pr-3">
+                            <span className="text-neutral-400">{fmtPrice(h.oldPriceB)}</span>
+                            {' → '}
+                            <span className="font-medium">{fmtPrice(h.newPriceB)}</span>
+                          </td>
+                          <td className="py-1.5">
+                            <span className="text-neutral-400">{fmtPrice(h.oldPriceC)}</span>
+                            {' → '}
+                            <span className="font-medium">{fmtPrice(h.newPriceC)}</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            )}
           </Card>
         )}
 

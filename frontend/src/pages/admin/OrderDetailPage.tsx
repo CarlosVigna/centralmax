@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card } from '../../components/ui/Card';
@@ -55,6 +55,15 @@ export function OrderDetailPage() {
   const queryClient = useQueryClient();
 
   const [walkinPhone, setWalkinPhone] = useState('');
+  const [trackingCopied, setTrackingCopied] = useState(false);
+
+  const copyTrackingLink = useCallback((orderNumber: string) => {
+    const url = `${window.location.origin}/rastrear?pedido=${orderNumber}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setTrackingCopied(true);
+      setTimeout(() => setTrackingCopied(false), 2000);
+    });
+  }, []);
 
   const { data: order, isLoading, isError } = useQuery({
     queryKey: ['order', id],
@@ -230,6 +239,13 @@ export function OrderDetailPage() {
             onClick={() => duplicateMutation.mutate()}
           >
             Duplicar pedido
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => copyTrackingLink(order.orderNumber)}
+          >
+            {trackingCopied ? '✓ Copiado!' : '🔗 Link de rastreio'}
           </Button>
         </div>
       </div>

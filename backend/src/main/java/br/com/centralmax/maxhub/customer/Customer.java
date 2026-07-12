@@ -41,6 +41,9 @@ public class Customer {
     @Column(length = 20)
     private String document;
 
+    @Column(name = "document_type", length = 10)
+    private String documentType;
+
     @Column(length = 20)
     private String phone;
 

@@ -8,4 +8,6 @@ import java.util.UUID;
 public interface SupplierRepository extends JpaRepository<Supplier, UUID> {
 
     List<Supplier> findByActiveTrue();
+
+    java.util.Optional<Supplier> findByNameIgnoreCase(String name);
 }

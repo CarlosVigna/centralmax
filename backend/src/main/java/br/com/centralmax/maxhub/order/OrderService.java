@@ -11,8 +11,10 @@ import br.com.centralmax.maxhub.financial.FinancialEntryService;
 import br.com.centralmax.maxhub.order.dto.OrderRequest;
 import br.com.centralmax.maxhub.order.dto.OrderResponse;
 import br.com.centralmax.maxhub.order.dto.OrderStatusUpdateRequest;
+import br.com.centralmax.maxhub.order.dto.OrderTrackingResponse;
 import br.com.centralmax.maxhub.product.Product;
 import br.com.centralmax.maxhub.product.ProductRepository;
+import br.com.centralmax.maxhub.product.discount.ProductVolumeDiscountRepository;
 import br.com.centralmax.maxhub.stock.StockMovement;
 import br.com.centralmax.maxhub.stock.StockMovementRepository;
 import br.com.centralmax.maxhub.stock.StockMovementType;
@@ -44,6 +46,16 @@ public class OrderService {
             OrderStatus.SAIU_ENTREGA, OrderStatus.ENTREGUE, OrderStatus.CONCLUIDO
     );
 
+    private static final Map<String, String> STATUS_LABELS = Map.of(
+            "NOVO",         "Pedido recebido",
+            "CONFIRMADO",   "Pedido confirmado",
+            "EM_SEPARACAO", "Em separação",
+            "SAIU_ENTREGA", "Saiu para entrega",
+            "ENTREGUE",     "Entregue",
+            "CONCLUIDO",    "Concluído",
+            "CANCELADO",    "Cancelado"
+    );
+
     private final OrderRepository orderRepository;
     private final CustomerRepository customerRepository;
     private final ProductRepository productRepository;
@@ -51,6 +63,8 @@ public class OrderService {
     private final FinancialEntryService financialEntryService;
     private final CustomerService customerService;
     private final OrderMapper orderMapper;
+    private final OrderStatusHistoryRepository statusHistoryRepository;
+    private final ProductVolumeDiscountRepository volumeDiscountRepository;
 
     @Transactional(readOnly = true)
     public PageResponse<OrderResponse> list(OrderStatus status, String search, UUID customerId, int page, int size) {
@@ -123,8 +137,7 @@ public class OrderService {
                             "Produto " + itemReq.productId() + " não encontrado"));
 
             BigDecimal unitPrice = resolvePrice(product, customerType);
-            BigDecimal discount = itemReq.discountPercent() != null
-                    ? itemReq.discountPercent() : BigDecimal.ZERO;
+            BigDecimal discount = resolveVolumeDiscount(product.getId(), itemReq.quantity(), itemReq.discountPercent());
             BigDecimal finalPrice = applyDiscount(unitPrice, discount);
             BigDecimal subtotal = finalPrice.multiply(BigDecimal.valueOf(itemReq.quantity()));
 
@@ -152,6 +165,11 @@ public class OrderService {
         order.setTotalAmount(total);
         order = orderRepository.save(order);
         stockMovementRepository.saveAll(movements);
+
+        statusHistoryRepository.save(OrderStatusHistory.builder()
+                .order(order)
+                .status(OrderStatus.NOVO)
+                .build());
 
         return orderMapper.toResponse(order);
     }
@@ -205,8 +223,7 @@ public class OrderService {
                             "Produto " + itemReq.productId() + " não encontrado"));
 
             BigDecimal unitPrice = resolvePrice(product, customerType);
-            BigDecimal discount = itemReq.discountPercent() != null
-                    ? itemReq.discountPercent() : BigDecimal.ZERO;
+            BigDecimal discount = resolveVolumeDiscount(product.getId(), itemReq.quantity(), itemReq.discountPercent());
             BigDecimal finalPrice = applyDiscount(unitPrice, discount);
             BigDecimal subtotal = finalPrice.multiply(BigDecimal.valueOf(itemReq.quantity()));
 
@@ -296,11 +313,55 @@ public class OrderService {
         return orderMapper.toResponse(copy);
     }
 
+    @Transactional(readOnly = true)
+    public OrderTrackingResponse getTracking(String orderNumber) {
+        Order order = orderRepository.findByOrderNumberAndActiveTrue(orderNumber)
+                .orElseThrow(() -> new ResourceNotFoundException("Pedido não encontrado"));
+
+        List<OrderStatusHistory> history = statusHistoryRepository.findByOrderIdOrderByChangedAtAsc(order.getId());
+
+        List<OrderTrackingResponse.TimelineEntry> timeline;
+        if (history.isEmpty()) {
+            timeline = List.of(new OrderTrackingResponse.TimelineEntry(
+                    order.getStatus().name(),
+                    STATUS_LABELS.getOrDefault(order.getStatus().name(), order.getStatus().name()),
+                    order.getUpdatedAt()));
+        } else {
+            timeline = history.stream()
+                    .map(h -> new OrderTrackingResponse.TimelineEntry(
+                            h.getStatus().name(),
+                            STATUS_LABELS.getOrDefault(h.getStatus().name(), h.getStatus().name()),
+                            h.getChangedAt()))
+                    .toList();
+        }
+
+        List<OrderTrackingResponse.TrackingItem> items = order.getItems().stream()
+                .map(i -> new OrderTrackingResponse.TrackingItem(i.getProductName(), i.getQuantity()))
+                .toList();
+
+        String customerName = order.getCustomer() != null
+                ? order.getCustomer().getName() : order.getCustomerName();
+
+        return new OrderTrackingResponse(
+                order.getOrderNumber(),
+                customerName,
+                order.getStatus().name(),
+                STATUS_LABELS.getOrDefault(order.getStatus().name(), order.getStatus().name()),
+                order.getEstimatedDeliveryDate(),
+                items,
+                timeline);
+    }
+
     @Transactional
     public OrderResponse updateStatus(UUID id, OrderStatusUpdateRequest request) {
         Order order = findOrThrow(id);
         validateStatusTransition(order.getStatus(), request.status());
         order.setStatus(request.status());
+
+        statusHistoryRepository.save(OrderStatusHistory.builder()
+                .order(order)
+                .status(request.status())
+                .build());
 
         if (request.status() == OrderStatus.CONFIRMADO) {
             LocalDate dueDate = calculateDueDate(order.getPaymentCondition());
@@ -506,6 +567,16 @@ public class OrderService {
             case SESSENTA_DIAS -> today.plusDays(60);
             case NOVENTA_DIAS -> today.plusDays(90);
         };
+    }
+
+    private BigDecimal resolveVolumeDiscount(UUID productId, int quantity, BigDecimal requestedDiscount) {
+        var rules = volumeDiscountRepository.findByProductIdOrderByMinQuantityDesc(productId);
+        for (var rule : rules) {
+            if (quantity >= rule.getMinQuantity()) {
+                return rule.getDiscountPercent();
+            }
+        }
+        return requestedDiscount != null ? requestedDiscount : BigDecimal.ZERO;
     }
 
     private BigDecimal resolvePrice(Product product, CustomerType type) {

@@ -29,6 +29,7 @@ export interface Customer {
   email: string | null;
   phone: string | null;
   document: string | null;
+  documentType: string | null;
   status: CustomerStatus;
   statusLabel: string;
   customerType: CustomerType;
@@ -70,6 +71,7 @@ export interface CustomerRequest {
   email?: string;
   phone?: string;
   document?: string;
+  documentType?: string;
   status?: CustomerStatus;
   origin: CustomerOrigin;
   notes?: string;

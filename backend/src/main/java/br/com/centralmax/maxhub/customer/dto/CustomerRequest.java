@@ -25,6 +25,8 @@ public record CustomerRequest(
         @Size(max = 20, message = "Documento deve ter no máximo 20 caracteres")
         String document,
 
+        String documentType,
+
         CustomerStatus status,
 
         @NotNull(message = "Origem é obrigatória")

@@ -2,6 +2,7 @@ package br.com.centralmax.maxhub.report;
 
 import br.com.centralmax.maxhub.report.dto.CustomerReportResponse;
 import br.com.centralmax.maxhub.report.dto.SalesReportResponse;
+import br.com.centralmax.maxhub.report.dto.WeeklyForecastResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -31,5 +32,10 @@ public class ReportController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         return ResponseEntity.ok(reportService.getCustomerReport(startDate, endDate));
+    }
+
+    @GetMapping("/weekly-forecast")
+    public ResponseEntity<WeeklyForecastResponse> weeklyForecast() {
+        return ResponseEntity.ok(reportService.getWeeklyForecast());
     }
 }

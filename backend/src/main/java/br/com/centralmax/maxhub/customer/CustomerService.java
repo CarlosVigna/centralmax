@@ -67,6 +67,7 @@ public class CustomerService {
                 .email(normaliseEmail(request.email()))
                 .phone(blankToNull(request.phone()))
                 .document(blankToNull(request.document()))
+                .documentType(request.documentType() != null ? request.documentType() : "CNPJ")
                 .status(request.status() != null ? request.status() : CustomerStatus.PROSPECT)
                 .origin(request.origin())
                 .notes(blankToNull(request.notes()))
@@ -109,6 +110,7 @@ public class CustomerService {
         customer.setEmail(normaliseEmail(request.email()));
         customer.setPhone(blankToNull(request.phone()));
         customer.setDocument(blankToNull(request.document()));
+        if (request.documentType() != null) customer.setDocumentType(request.documentType());
         customer.setStatus(request.status() != null ? request.status() : customer.getStatus());
         customer.setNotes(blankToNull(request.notes()));
         customer.setAddressStreet(blankToNull(request.addressStreet()));

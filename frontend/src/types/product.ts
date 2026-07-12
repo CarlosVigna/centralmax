@@ -70,3 +70,30 @@ export interface ProductRequest {
   priceC: number;
   mainImageUrl?: string;
 }
+
+export interface VolumeDiscount {
+  id: string;
+  minQuantity: number;
+  discountPercent: number;
+  createdAt: string;
+}
+
+export interface PriceHistory {
+  id: string;
+  oldPurchasePrice: number | null;
+  newPurchasePrice: number | null;
+  oldPriceA: number | null;
+  newPriceA: number | null;
+  oldPriceB: number | null;
+  newPriceB: number | null;
+  oldPriceC: number | null;
+  newPriceC: number | null;
+  changedAt: string;
+}
+
+export interface ImportResult {
+  total: number;
+  created: number;
+  updated: number;
+  errors: Array<{ line: number; error: string }>;
+}

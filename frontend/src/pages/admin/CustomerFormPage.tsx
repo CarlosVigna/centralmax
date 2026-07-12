@@ -15,6 +15,7 @@ interface CustomerFormValues {
   email: string;
   phone: string;
   document: string;
+  documentType: 'CPF' | 'CNPJ';
   status: string;
   origin: string;
   notes: string;
@@ -36,6 +37,15 @@ interface CustomerFormValues {
   lostReason: string;
 }
 
+function applyCnpjMask(value: string): string {
+  const d = value.replace(/\D/g, '').slice(0, 14);
+  return d
+    .replace(/^(\d{2})(\d)/, '$1.$2')
+    .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+    .replace(/\.(\d{3})(\d)/, '.$1/$2')
+    .replace(/(\d{4})(\d)/, '$1-$2');
+}
+
 export function CustomerFormPage() {
   const { id } = useParams<{ id: string }>();
   const isEditing = Boolean(id);
@@ -44,6 +54,8 @@ export function CustomerFormPage() {
   const numberInputRef = useRef<HTMLInputElement | null>(null);
   const [cepLoading, setCepLoading] = useState(false);
   const [cepError, setCepError] = useState('');
+  const [cnpjLoading, setCnpjLoading] = useState(false);
+  const [cnpjError, setCnpjError] = useState('');
 
   const { data: existing, isLoading: loadingCustomer } = useQuery({
     queryKey: ['customer', id],
@@ -57,6 +69,7 @@ export function CustomerFormPage() {
       email: '',
       phone: '',
       document: '',
+      documentType: 'CNPJ',
       status: 'PROSPECT',
       origin: '',
       notes: '',
@@ -82,6 +95,7 @@ export function CustomerFormPage() {
   const statusWatched = watch('status');
   const prospectStatusWatched = watch('prospectStatus');
   const potentialWatched = watch('commercialPotential');
+  const documentTypeWatched = watch('documentType');
 
   useEffect(() => {
     if (existing) {
@@ -90,6 +104,7 @@ export function CustomerFormPage() {
         email: existing.email ?? '',
         phone: existing.phone ?? '',
         document: existing.document ?? '',
+        documentType: (existing.documentType as 'CPF' | 'CNPJ') ?? 'CNPJ',
         status: existing.status,
         origin: existing.origin,
         notes: existing.notes ?? '',
@@ -111,6 +126,37 @@ export function CustomerFormPage() {
       });
     }
   }, [existing, reset]);
+
+  async function fetchCnpj() {
+    const raw = watch('document').replace(/\D/g, '');
+    if (raw.length !== 14) {
+      setCnpjError('CNPJ deve ter 14 dígitos.');
+      return;
+    }
+    setCnpjError('');
+    setCnpjLoading(true);
+    try {
+      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${raw}`);
+      if (!res.ok) { setCnpjError('CNPJ não encontrado.'); return; }
+      const d = await res.json();
+      if (d.razao_social) setValue('name', d.razao_social);
+      if (d.email) setValue('email', d.email.toLowerCase());
+      if (d.ddd_telefone_1) setValue('phone', d.ddd_telefone_1.trim());
+      if (d.descricao_tipo_de_logradouro || d.logradouro)
+        setValue('addressStreet', `${d.descricao_tipo_de_logradouro ?? ''} ${d.logradouro ?? ''}`.trim());
+      if (d.numero) setValue('addressNumber', d.numero);
+      if (d.complemento) setValue('addressComplement', d.complemento);
+      if (d.bairro) setValue('addressNeighborhood', d.bairro);
+      if (d.municipio) setValue('addressCity', d.municipio);
+      if (d.uf) setValue('addressState', d.uf);
+      if (d.cep) setValue('addressZip', d.cep.replace(/\D/g, '').replace(/^(\d{5})(\d{3})$/, '$1-$2'));
+      if (d.cnae_fiscal_descricao) setValue('businessType', d.cnae_fiscal_descricao);
+    } catch {
+      setCnpjError('Erro ao consultar CNPJ.');
+    } finally {
+      setCnpjLoading(false);
+    }
+  }
 
   async function fetchCep() {
     const cep = watch('addressZip').replace(/\D/g, '');
@@ -155,6 +201,7 @@ export function CustomerFormPage() {
       email: values.email.trim() || undefined,
       phone: values.phone.trim() || undefined,
       document: values.document.trim() || undefined,
+      documentType: values.documentType,
       status: values.status as CustomerRequest['status'],
       origin: values.origin as CustomerRequest['origin'],
       notes: values.notes.trim() || undefined,
@@ -231,16 +278,59 @@ export function CustomerFormPage() {
             })}
             error={formState.errors.phone?.message}
           />
-          <Input
-            label="CPF / CNPJ"
-            id="document"
-            placeholder="000.000.000-00"
-            {...register('document', {
-              maxLength: { value: 20, message: 'Máximo 20 caracteres' },
-            })}
-            error={formState.errors.document?.message}
-          />
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2 mb-1">
+              <label className="text-sm font-medium text-neutral-900">Documento</label>
+              <div className="flex rounded-md border border-neutral-300 overflow-hidden text-xs">
+                {(['CNPJ', 'CPF'] as const).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setValue('documentType', t)}
+                    className={`px-2 py-0.5 transition ${documentTypeWatched === t ? 'bg-primary text-white' : 'bg-white text-neutral-600 hover:bg-neutral-50'}`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex gap-2 items-start">
+              <div className="flex-1">
+                <input
+                  id="document"
+                  placeholder={documentTypeWatched === 'CNPJ' ? '00.000.000/0000-00' : '000.000.000-00'}
+                  className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-light"
+                  {...register('document', {
+                    maxLength: { value: 20, message: 'Máximo 20 caracteres' },
+                    onChange: (e) => {
+                      if (documentTypeWatched === 'CNPJ') {
+                        e.target.value = applyCnpjMask(e.target.value);
+                        setValue('document', e.target.value);
+                      }
+                    },
+                  })}
+                />
+                {formState.errors.document && (
+                  <p className="mt-1 text-xs text-danger">{formState.errors.document.message}</p>
+                )}
+              </div>
+              {documentTypeWatched === 'CNPJ' && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={cnpjLoading}
+                  onClick={fetchCnpj}
+                  className="mt-0 shrink-0"
+                >
+                  {cnpjLoading ? '...' : 'Buscar'}
+                </Button>
+              )}
+            </div>
+            {cnpjError && <p className="text-xs text-danger">{cnpjError}</p>}
+          </div>
         </div>
+        <input type="hidden" {...register('documentType')} />
 
         <Select
           label="Tipo"

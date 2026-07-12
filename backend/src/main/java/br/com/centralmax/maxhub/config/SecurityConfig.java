@@ -53,6 +53,11 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/api/categories/**", "/api/products/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/categories/**", "/api/products/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/products/*/activate").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/products/import").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/products/*/discounts").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/products/*/discounts").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/products/*/discounts/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/products/*/price-history").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/products/*/photos").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/products/*/duplicate").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/products/*/photos/**").hasRole("ADMIN")
@@ -66,6 +71,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PATCH, "/api/suppliers/**").hasRole("ADMIN")
                         // Clientes — autenticado (ADMIN ou VENDEDOR)
                         .requestMatchers("/api/customers", "/api/customers/**").authenticated()
+                        // Rastreio público de pedidos
+                        .requestMatchers(HttpMethod.GET, "/api/orders/track/**").permitAll()
                         // Pedidos — autenticado
                         .requestMatchers("/api/orders", "/api/orders/**").authenticated()
                         // Notificações — autenticado

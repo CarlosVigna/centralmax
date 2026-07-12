@@ -14,6 +14,8 @@ public interface OrderRepository extends JpaRepository<Order, UUID>, JpaSpecific
     @Query(value = "SELECT nextval('order_number_seq')", nativeQuery = true)
     Long nextOrderNumber();
 
+    java.util.Optional<Order> findByOrderNumberAndActiveTrue(String orderNumber);
+
     @Query("SELECT COUNT(o) FROM Order o WHERE o.status IN :statuses AND o.active = true")
     long countByStatusInAndActive(@Param("statuses") List<OrderStatus> statuses);
 
@@ -75,4 +77,25 @@ public interface OrderRepository extends JpaRepository<Order, UUID>, JpaSpecific
             ORDER BY day
             """, nativeQuery = true)
     List<Object[]> findRevenueByDayInPeriod(@Param("start") Instant start, @Param("end") Instant end);
+
+    @Query(value = """
+            SELECT oi.product_id,
+                   p.name  AS product_name,
+                   p.sku   AS sku,
+                   COALESCE(SUM(oi.quantity), 0)                                                     AS total30,
+                   COALESCE(SUM(CASE WHEN o.created_at >= :start15 THEN oi.quantity ELSE 0 END), 0)  AS last15,
+                   COALESCE(SUM(CASE WHEN o.created_at <  :start15 THEN oi.quantity ELSE 0 END), 0)  AS prev15
+            FROM order_items oi
+            JOIN orders  o ON o.id  = oi.order_id
+            JOIN products p ON p.id = oi.product_id
+            WHERE o.created_at >= :start30
+              AND o.active = true
+              AND o.status = 'CONCLUIDO'
+            GROUP BY oi.product_id, p.name, p.sku
+            ORDER BY total30 DESC
+            LIMIT 20
+            """, nativeQuery = true)
+    List<Object[]> findWeeklyForecastData(
+            @Param("start30") Instant start30,
+            @Param("start15") Instant start15);
 }

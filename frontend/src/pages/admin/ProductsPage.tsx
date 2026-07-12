@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Table } from '../../components/ui/Table';
@@ -7,11 +7,24 @@ import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
-import { listAdminProducts, deleteProduct, duplicateProduct, activateProduct } from '../../services/productService';
+import { listAdminProducts, deleteProduct, duplicateProduct, activateProduct, importProductsCsv } from '../../services/productService';
 import { listAllCategories } from '../../services/categoryService';
 import { formatCurrency } from '../../utils/formatCurrency';
-import type { ProductAdmin } from '../../types/product';
+import type { ProductAdmin, ImportResult } from '../../types/product';
 import { Pagination } from '../../components/ui/Pagination';
+
+const CSV_TEMPLATE_HEADER = 'sku,nome,descricao,categoria,fornecedor,preco_custo,preco_a,preco_b,preco_c,qtd_minima\n';
+const CSV_TEMPLATE_EXAMPLE = '100638,Caixa Kraft 20x20x15,Caixa para envio,Embalagens,Fornecedor A,2.50,3.00,3.25,3.75,1\n';
+
+function downloadCsvTemplate() {
+  const blob = new Blob([CSV_TEMPLATE_HEADER + CSV_TEMPLATE_EXAMPLE], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'template_produtos.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 export function ProductsPage() {
   const queryClient = useQueryClient();
@@ -23,6 +36,11 @@ export function ProductsPage() {
   const [pageSize, setPageSize] = useState(20);
   const [confirmDelete, setConfirmDelete] = useState<ProductAdmin | null>(null);
   const [confirmDuplicate, setConfirmDuplicate] = useState<ProductAdmin | null>(null);
+  const [showImport, setShowImport] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: categories = [] } = useQuery({
     queryKey: ['admin-categories'],
@@ -68,6 +86,22 @@ export function ProductsPage() {
       navigate(`/admin/produtos/${created.id}/editar`);
     },
   });
+
+  async function handleImportFile(file: File) {
+    if (!file.name.endsWith('.csv')) return;
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const result = await importProductsCsv(file);
+      setImportResult(result);
+      queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+    } catch (e) {
+      setImportResult({ total: 0, created: 0, updated: 0, errors: [{ line: 0, error: 'Erro ao importar arquivo.' }] });
+    } finally {
+      setImporting(false);
+    }
+  }
 
   const products = data?.content ?? [];
 
@@ -172,11 +206,19 @@ export function ProductsPage() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-neutral-900">Produtos</h1>
-        <Link to="/admin/produtos/novo">
-          <Button>Novo produto</Button>
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={downloadCsvTemplate}>
+            Baixar Template CSV
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => { setImportResult(null); setShowImport(true); }}>
+            Importar CSV
+          </Button>
+          <Link to="/admin/produtos/novo">
+            <Button>Novo produto</Button>
+          </Link>
+        </div>
       </div>
 
       {/* Filtros */}
@@ -306,6 +348,65 @@ export function ProductsPage() {
             Desativar
           </Button>
         </div>
+      </Modal>
+
+      {/* Modal: importar CSV */}
+      <Modal
+        open={showImport}
+        onClose={() => { if (!importing) { setShowImport(false); setImportResult(null); } }}
+        title="Importar produtos via CSV"
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".csv"
+          className="hidden"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImportFile(f); e.target.value = ''; }}
+        />
+        {!importResult ? (
+          <div
+            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={(e) => { e.preventDefault(); setIsDragging(false); const f = e.dataTransfer.files[0]; if (f) handleImportFile(f); }}
+            onClick={() => fileInputRef.current?.click()}
+            className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-10 transition
+              ${isDragging ? 'border-primary bg-primary/5' : 'border-neutral-300 hover:border-primary/50'}`}
+          >
+            <span className="text-3xl mb-2">📂</span>
+            {importing ? (
+              <p className="text-sm text-neutral-600">Importando...</p>
+            ) : (
+              <>
+                <p className="text-sm font-medium text-neutral-700">Arraste um arquivo CSV aqui</p>
+                <p className="text-xs text-neutral-400 mt-1">ou clique para selecionar</p>
+              </>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex gap-4 text-sm">
+              <span>Total: <strong>{importResult.total}</strong></span>
+              <span className="text-green-700">Criados: <strong>{importResult.created}</strong></span>
+              <span className="text-blue-700">Atualizados: <strong>{importResult.updated}</strong></span>
+              {importResult.errors.length > 0 && (
+                <span className="text-danger">Erros: <strong>{importResult.errors.length}</strong></span>
+              )}
+            </div>
+            {importResult.errors.length > 0 && (
+              <div className="max-h-40 overflow-y-auto rounded-md border border-danger/20 bg-red-50 p-3 text-xs space-y-1">
+                {importResult.errors.map((e, i) => (
+                  <p key={i} className="text-danger">
+                    {e.line > 0 ? `Linha ${e.line}: ` : ''}{e.error}
+                  </p>
+                ))}
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setImportResult(null)}>Importar outro</Button>
+              <Button onClick={() => { setShowImport(false); setImportResult(null); }}>Fechar</Button>
+            </div>
+          </div>
+        )}
       </Modal>
 
       {/* Modal: duplicar */}
