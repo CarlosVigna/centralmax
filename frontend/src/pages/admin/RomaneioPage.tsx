@@ -125,7 +125,7 @@ export function RomaneioPage() {
           {data.items.length === 0 ? (
             <p className="text-sm text-neutral-600">Nenhum item encontrado para os filtros selecionados.</p>
           ) : (
-            <div className="overflow-hidden rounded-lg border border-neutral-200 bg-white print:border-none">
+            <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white print:border-none">
               <table className="w-full text-sm">
                 <thead className="bg-neutral-50 text-left">
                   <tr>

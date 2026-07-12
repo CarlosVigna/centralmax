@@ -262,7 +262,7 @@ export function FinancialPage() {
       </div>
 
       {/* Desktop table */}
-      <div className="mt-4 hidden overflow-hidden rounded-lg border border-neutral-200 bg-white md:block">
+      <div className="mt-4 hidden overflow-x-auto rounded-lg border border-neutral-200 bg-white md:block">
         {isLoading ? (
           <p className="p-6 text-sm text-neutral-600">Carregando...</p>
         ) : !entries?.content?.length ? (

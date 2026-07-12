@@ -522,7 +522,7 @@ export function CustomerDetailPage() {
           ) : orders.length === 0 ? (
             <p className="text-sm text-neutral-400">Nenhum pedido encontrado para este cliente.</p>
           ) : (
-            <div className="overflow-hidden rounded-lg border border-neutral-200 bg-white">
+            <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
               <table className="w-full text-sm">
                 <thead className="border-b border-neutral-200 bg-neutral-50 text-xs font-medium text-neutral-500">
                   <tr>

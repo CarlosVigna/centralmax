@@ -25,27 +25,29 @@ export function Table<T extends { id: string }>({
   }
 
   return (
-    <table className="w-full text-left text-sm">
-      <thead>
-        <tr className="border-b border-neutral-300">
-          {columns.map((column) => (
-            <th key={column.header} className={`${cellPadding} font-medium text-neutral-600`}>
-              {column.header}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {data.map((row, index) => (
-          <tr key={row.id} className={index % 2 === 0 ? 'bg-white' : 'bg-neutral-100'}>
+    <div className="overflow-x-auto">
+      <table className="w-full text-left text-sm">
+        <thead>
+          <tr className="border-b border-neutral-300">
             {columns.map((column) => (
-              <td key={column.header} className={cellPadding}>
-                {column.render(row)}
-              </td>
+              <th key={column.header} className={`${cellPadding} font-medium text-neutral-600`}>
+                {column.header}
+              </th>
             ))}
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {data.map((row, index) => (
+            <tr key={row.id} className={index % 2 === 0 ? 'bg-white' : 'bg-neutral-100'}>
+              {columns.map((column) => (
+                <td key={column.header} className={cellPadding}>
+                  {column.render(row)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

@@ -458,7 +458,7 @@ export function OrderFormPage() {
           )}
 
           {cartItems.length > 0 ? (
-            <div className="overflow-hidden rounded-md border border-neutral-200">
+            <div className="overflow-x-auto rounded-md border border-neutral-200">
               <table className="w-full text-sm">
                 <thead className="bg-neutral-50 text-left">
                   <tr>

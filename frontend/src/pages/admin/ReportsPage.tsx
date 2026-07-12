@@ -234,24 +234,26 @@ function SalesTab({
           {data.topProducts.length === 0 ? (
             <p className="text-sm text-neutral-500">Sem dados no período.</p>
           ) : (
-            <table className="w-full text-sm">
-              <thead className="text-xs font-medium text-neutral-500">
-                <tr>
-                  <th className="py-2 text-left">Produto</th>
-                  <th className="py-2 text-right">Qtd</th>
-                  <th className="py-2 text-right">Receita</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-100">
-                {data.topProducts.map((p, i) => (
-                  <tr key={i}>
-                    <td className="py-2 text-neutral-800">{p.productName}</td>
-                    <td className="py-2 text-right text-neutral-600">{p.quantity}</td>
-                    <td className="py-2 text-right font-medium text-green-600">{fmtCurrency(Number(p.revenue))}</td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-xs font-medium text-neutral-500">
+                  <tr>
+                    <th className="py-2 text-left">Produto</th>
+                    <th className="py-2 text-right">Qtd</th>
+                    <th className="py-2 text-right">Receita</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-neutral-100">
+                  {data.topProducts.map((p, i) => (
+                    <tr key={i}>
+                      <td className="py-2 text-neutral-800">{p.productName}</td>
+                      <td className="py-2 text-right text-neutral-600">{p.quantity}</td>
+                      <td className="py-2 text-right font-medium text-green-600">{fmtCurrency(Number(p.revenue))}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </Card>
 
@@ -261,22 +263,24 @@ function SalesTab({
           {statusEntries.length === 0 ? (
             <p className="text-sm text-neutral-500">Sem dados no período.</p>
           ) : (
-            <table className="w-full text-sm">
-              <thead className="text-xs font-medium text-neutral-500">
-                <tr>
-                  <th className="py-2 text-left">Status</th>
-                  <th className="py-2 text-right">Pedidos</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-100">
-                {statusEntries.map((s, i) => (
-                  <tr key={i}>
-                    <td className="py-2 text-neutral-800">{s.status}</td>
-                    <td className="py-2 text-right font-medium">{s.count}</td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-xs font-medium text-neutral-500">
+                  <tr>
+                    <th className="py-2 text-left">Status</th>
+                    <th className="py-2 text-right">Pedidos</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-neutral-100">
+                  {statusEntries.map((s, i) => (
+                    <tr key={i}>
+                      <td className="py-2 text-neutral-800">{s.status}</td>
+                      <td className="py-2 text-right font-medium">{s.count}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </Card>
       </div>
@@ -394,6 +398,7 @@ function CustomersTab({
         {data.topCustomers.length === 0 ? (
           <p className="text-sm text-neutral-500">Sem dados no período.</p>
         ) : (
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="text-xs font-medium text-neutral-500">
               <tr>
@@ -414,6 +419,7 @@ function CustomersTab({
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </Card>
     </div>
