@@ -1,5 +1,6 @@
 package br.com.centralmax.maxhub.order;
 
+import br.com.centralmax.maxhub.activity.ActivityFeedService;
 import br.com.centralmax.maxhub.common.exception.BusinessException;
 import br.com.centralmax.maxhub.common.exception.ResourceNotFoundException;
 import br.com.centralmax.maxhub.common.response.PageResponse;
@@ -15,6 +16,7 @@ import br.com.centralmax.maxhub.order.dto.OrderTrackingResponse;
 import br.com.centralmax.maxhub.product.Product;
 import br.com.centralmax.maxhub.product.ProductRepository;
 import br.com.centralmax.maxhub.product.discount.ProductVolumeDiscountRepository;
+import br.com.centralmax.maxhub.security.SecurityUtils;
 import br.com.centralmax.maxhub.stock.StockMovement;
 import br.com.centralmax.maxhub.stock.StockMovementRepository;
 import br.com.centralmax.maxhub.stock.StockMovementType;
@@ -65,11 +67,22 @@ public class OrderService {
     private final OrderMapper orderMapper;
     private final OrderStatusHistoryRepository statusHistoryRepository;
     private final ProductVolumeDiscountRepository volumeDiscountRepository;
+    private final SecurityUtils securityUtils;
+    private final ActivityFeedService activityFeedService;
 
     @Transactional(readOnly = true)
     public PageResponse<OrderResponse> list(OrderStatus status, String search, UUID customerId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        Page<Order> result = orderRepository.findAll(buildSpec(status, search, customerId), pageable);
+        Specification<Order> spec = buildSpec(status, search, customerId);
+        if (securityUtils.isVendedor()) {
+            var userOpt = securityUtils.getCurrentUser();
+            if (userOpt.isPresent()) {
+                final UUID userId = userOpt.get().getId();
+                spec = spec.and((root, query, cb) ->
+                        cb.equal(root.get("createdByUserId"), userId));
+            }
+        }
+        Page<Order> result = orderRepository.findAll(spec, pageable);
         return PageResponse.from(result.map(orderMapper::toResponse));
     }
 
@@ -83,6 +96,12 @@ public class OrderService {
         List<OrderStatus> boardStatuses = List.of(
                 OrderStatus.NOVO, OrderStatus.CONFIRMADO, OrderStatus.EM_SEPARACAO,
                 OrderStatus.SAIU_ENTREGA, OrderStatus.ENTREGUE);
+        if (securityUtils.isVendedor()) {
+            return securityUtils.getCurrentUser()
+                    .map(u -> orderRepository.findBoardOrdersByUser(boardStatuses, u.getId()))
+                    .orElseGet(() -> orderRepository.findBoardOrders(boardStatuses))
+                    .stream().map(orderMapper::toResponse).toList();
+        }
         return orderRepository.findBoardOrders(boardStatuses)
                 .stream().map(orderMapper::toResponse).toList();
     }
@@ -125,6 +144,7 @@ public class OrderService {
                 .paymentCondition(paymentCondition)
                 .nfNumber(blankToNull(request.nfNumber()))
                 .estimatedDeliveryDate(request.estimatedDeliveryDate())
+                .createdByUserId(securityUtils.getCurrentUser().map(u -> u.getId()).orElse(null))
                 .build();
         order = orderRepository.save(order);
 
@@ -170,6 +190,11 @@ public class OrderService {
                 .order(order)
                 .status(OrderStatus.NOVO)
                 .build());
+
+        final Order savedOrder = order;
+        securityUtils.getCurrentUser().ifPresent(u ->
+                activityFeedService.log(u.getId(), u.getName(), "CREATE", "ORDER",
+                        savedOrder.getId(), savedOrder.getOrderNumber(), null));
 
         return orderMapper.toResponse(order);
     }

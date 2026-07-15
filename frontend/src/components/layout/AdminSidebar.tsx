@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { useNotifications } from '../../hooks/useNotifications';
+import { useAuth } from '../../hooks/useAuth';
 
 type NavItem = {
   to: string;
@@ -92,13 +93,18 @@ const IconTrend = () => (
     <polyline points="16 7 22 7 22 13" />
   </svg>
 );
+const IconActivity = () => (
+  <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+  </svg>
+);
 const IconX = () => (
   <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
     <path d="M18 6L6 18M6 6l12 12" />
   </svg>
 );
 
-const NAV_GROUPS: NavGroup[] = [
+const ADMIN_GROUPS: NavGroup[] = [
   {
     group: 'OPERAÇÃO',
     items: [
@@ -131,6 +137,31 @@ const NAV_GROUPS: NavGroup[] = [
     group: 'SISTEMA',
     items: [
       { to: '/admin/usuarios', label: 'Usuários', icon: <IconUserCog /> },
+      { to: '/admin/atividades', label: 'Atividades', icon: <IconActivity /> },
+    ],
+  },
+];
+
+const VENDEDOR_GROUPS: NavGroup[] = [
+  {
+    group: 'OPERAÇÃO',
+    items: [
+      { to: '/admin/painel', label: 'Meu Painel', icon: <IconDashboard /> },
+      { to: '/admin/pedidos', label: 'Pedidos', icon: <IconOrders /> },
+      { to: '/admin/expedicao', label: 'Expedição', showBadge: true, icon: <IconTruck /> },
+      { to: '/admin/agenda', label: 'Agenda', icon: <IconCalendar /> },
+    ],
+  },
+  {
+    group: 'CADASTROS',
+    items: [
+      { to: '/admin/clientes', label: 'Clientes', icon: <IconUsers /> },
+    ],
+  },
+  {
+    group: 'RELATÓRIOS',
+    items: [
+      { to: '/admin/meus-relatorios', label: 'Minhas Vendas', icon: <IconChart /> },
     ],
   },
 ];
@@ -141,7 +172,10 @@ interface AdminSidebarProps {
 
 export function AdminSidebar({ onClose }: AdminSidebarProps) {
   const { data: notifications } = useNotifications();
+  const { user } = useAuth();
   const activeOrders = notifications?.activeOrdersTotal ?? 0;
+
+  const groups = user?.role === 'VENDEDOR' ? VENDEDOR_GROUPS : ADMIN_GROUPS;
 
   function handleNavClick() {
     onClose?.();
@@ -163,7 +197,7 @@ export function AdminSidebar({ onClose }: AdminSidebarProps) {
       </div>
 
       <nav className="flex flex-col gap-4 overflow-y-auto text-sm font-medium text-neutral-900">
-        {NAV_GROUPS.map((group) => (
+        {groups.map((group) => (
           <div key={group.group}>
             <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest text-neutral-400">
               {group.group}
@@ -173,7 +207,7 @@ export function AdminSidebar({ onClose }: AdminSidebarProps) {
                 <NavLink
                   key={link.to}
                   to={link.to}
-                  end={link.to === '/admin'}
+                  end={link.to === '/admin' || link.to === '/admin/painel'}
                   onClick={handleNavClick}
                   className={({ isActive }) =>
                     `flex items-center justify-between rounded-md px-3 py-2
@@ -195,6 +229,15 @@ export function AdminSidebar({ onClose }: AdminSidebarProps) {
           </div>
         ))}
       </nav>
+
+      {user?.role === 'VENDEDOR' && (
+        <div className="mt-auto pt-4">
+          <p className="px-3 text-xs text-neutral-400">
+            Vendedor
+            {user.territory && <span className="ml-1">· {user.territory}</span>}
+          </p>
+        </div>
+      )}
     </aside>
   );
 }

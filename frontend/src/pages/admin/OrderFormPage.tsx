@@ -12,6 +12,7 @@ import { listAdminProducts } from '../../services/productService';
 import type { Customer, CustomerType } from '../../types/customer';
 import type { OrderItemRequest, PaymentCondition } from '../../types/order';
 import { PAYMENT_CONDITION_LABELS } from '../../types/order';
+import { useAuth } from '../../hooks/useAuth';
 
 interface CartItem {
   productId: string;
@@ -67,6 +68,12 @@ export function OrderFormPage() {
   const [initialized, setInitialized] = useState(false);
 
   const customerType: CustomerType = selectedCustomer?.customerType ?? 'C';
+  const { user } = useAuth();
+  const commissionRate = customerType === 'A'
+    ? (user?.commissionPriceA ?? user?.commissionPriceC ?? 0)
+    : customerType === 'B'
+    ? (user?.commissionPriceB ?? user?.commissionPriceC ?? 0)
+    : (user?.commissionPriceC ?? 0);
 
   // Load existing order for edit mode
   const { data: existingOrder } = useQuery({
@@ -444,17 +451,24 @@ export function OrderFormPage() {
           </div>
 
           {selectedProduct && (
-            <p className="mb-3 text-xs text-primary">
-              Preço: {fmtCurrency(getProductPrice(selectedProduct, customerType))}
-              {discount > 0 && (
-                <>
-                  {' '}→{' '}
-                  {fmtCurrency(applyDiscount(getProductPrice(selectedProduct, customerType), discount))}
-                  {' '}(-{discount}%)
-                </>
+            <div className="mb-3">
+              <p className="text-xs text-primary">
+                Preço: {fmtCurrency(getProductPrice(selectedProduct, customerType))}
+                {discount > 0 && (
+                  <>
+                    {' '}→{' '}
+                    {fmtCurrency(applyDiscount(getProductPrice(selectedProduct, customerType), discount))}
+                    {' '}(-{discount}%)
+                  </>
+                )}
+                {' '}· {PRICE_LABEL[customerType]}
+              </p>
+              {selectedProduct.maxDiscountPercent < 100 && discount > selectedProduct.maxDiscountPercent && (
+                <p className="mt-1 text-xs font-medium text-red-600">
+                  ⚠ Desconto máximo permitido: {selectedProduct.maxDiscountPercent}%
+                </p>
               )}
-              {' '}· {PRICE_LABEL[customerType]}
-            </p>
+            </div>
           )}
 
           {cartItems.length > 0 ? (
@@ -525,6 +539,52 @@ export function OrderFormPage() {
             </p>
           )}
         </Card>
+
+        {/* ── Simulador de Comissão (apenas para VENDEDOR) ── */}
+        {user?.role === 'VENDEDOR' && cartItems.length > 0 && commissionRate > 0 && (
+          <Card>
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-500">
+              Simulador de Comissão ({commissionRate}% · Tipo {customerType})
+            </h2>
+            <div className="overflow-x-auto rounded-md border border-neutral-200">
+              <table className="w-full text-sm">
+                <thead className="bg-neutral-50 text-left">
+                  <tr>
+                    <th className="px-3 py-2 font-medium text-neutral-600">Produto</th>
+                    <th className="px-3 py-2 font-medium text-neutral-600">Qtd</th>
+                    <th className="px-3 py-2 font-medium text-neutral-600">Preço final</th>
+                    <th className="px-3 py-2 font-medium text-green-700">Comissão</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-100">
+                  {cartItems.map((item) => {
+                    const finalPrice = applyDiscount(item.unitPrice, item.discountPercent);
+                    const subtotal = finalPrice * item.quantity;
+                    const commission = Math.round(subtotal * commissionRate / 100 * 100) / 100;
+                    return (
+                      <tr key={item.productId}>
+                        <td className="px-3 py-2 text-neutral-800">{item.productName}</td>
+                        <td className="px-3 py-2 text-neutral-600">{item.quantity}</td>
+                        <td className="px-3 py-2 text-neutral-700">{fmtCurrency(subtotal)}</td>
+                        <td className="px-3 py-2 font-semibold text-green-700">{fmtCurrency(commission)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              <div className="flex justify-end border-t border-neutral-200 bg-green-50 px-3 py-2">
+                <span className="text-sm font-bold text-green-700">
+                  Comissão total estimada:{' '}
+                  {fmtCurrency(cartItems.reduce((sum, item) => {
+                    const finalPrice = applyDiscount(item.unitPrice, item.discountPercent);
+                    const subtotal = finalPrice * item.quantity;
+                    return sum + Math.round(subtotal * commissionRate / 100 * 100) / 100;
+                  }, 0))}
+                </span>
+              </div>
+            </div>
+          </Card>
+        )}
 
         {/* ── Condição de pagamento ── */}
         <Card>

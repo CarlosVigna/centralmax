@@ -21,6 +21,7 @@ public record ProductAdminResponse(
         BigDecimal priceA,
         BigDecimal priceB,
         BigDecimal priceC,
+        BigDecimal maxDiscountPercent,
         String mainImageUrl,
         ProductStatus status,
         List<ProductPhotoResponse> photos,

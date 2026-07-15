@@ -94,6 +94,8 @@ public class ProductService {
                 .priceA(request.priceA())
                 .priceB(request.priceB())
                 .priceC(request.priceC())
+                .maxDiscountPercent(request.maxDiscountPercent() != null
+                        ? request.maxDiscountPercent() : new java.math.BigDecimal("100"))
                 .mainImageUrl(request.mainImageUrl())
                 .status(ProductStatus.ATIVO)
                 .build();
@@ -137,6 +139,7 @@ public class ProductService {
         product.setPriceA(request.priceA());
         product.setPriceB(request.priceB());
         product.setPriceC(request.priceC());
+        if (request.maxDiscountPercent() != null) product.setMaxDiscountPercent(request.maxDiscountPercent());
         product.setMainImageUrl(request.mainImageUrl());
 
         return productMapper.toAdminResponse(productRepository.save(product));

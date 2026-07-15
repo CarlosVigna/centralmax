@@ -4,6 +4,8 @@ import { AdminSidebar } from './AdminSidebar';
 import { GlobalSearch } from '../ui/GlobalSearch';
 import { useAuth } from '../../hooks/useAuth';
 import { useNotifications } from '../../hooks/useNotifications';
+import { useQuery } from '@tanstack/react-query';
+import { listRecentActivity } from '../../services/activityFeedService';
 import { Button } from '../ui/Button';
 
 const ADMIN_TITLES: Record<string, string> = {
@@ -50,6 +52,13 @@ const IconMenu = () => (
 export function AdminLayout() {
   const { user, logout } = useAuth();
   const { data: notifications } = useNotifications();
+  const isAdmin = user?.role === 'ADMIN';
+  const { data: recentActivity } = useQuery({
+    queryKey: ['activity-feed-recent'],
+    queryFn: () => listRecentActivity(5),
+    enabled: isAdmin,
+    staleTime: 60_000,
+  });
   const [showBell, setShowBell] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const bellRef = useRef<HTMLDivElement>(null);
@@ -253,6 +262,31 @@ export function AdminLayout() {
                       Ver agenda →
                     </Link>
                   </div>
+
+                  {/* Feed de atividades — só ADMIN */}
+                  {isAdmin && (
+                    <div className="border-t border-neutral-100 px-4 py-3">
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                        Atividades recentes
+                      </p>
+                      {!recentActivity?.length ? (
+                        <p className="text-xs text-neutral-400">Nenhuma atividade</p>
+                      ) : (
+                        <ul className="space-y-1.5">
+                          {recentActivity.map((a) => (
+                            <li key={a.id} className="text-xs text-neutral-700">
+                              <span className="font-semibold">{a.userName}</span>
+                              {' · '}{a.entityLabel ?? a.entityType}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <Link to="/admin/atividades" onClick={() => setShowBell(false)}
+                        className="mt-2 block text-xs text-primary hover:underline">
+                        Ver todas as atividades →
+                      </Link>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

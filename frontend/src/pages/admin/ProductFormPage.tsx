@@ -35,6 +35,7 @@ interface ProductFormValues {
   priceA: string;
   priceB: string;
   priceC: string;
+  maxDiscountPercent: string;
   mainImageUrl: string;
 }
 
@@ -123,6 +124,7 @@ export function ProductFormPage() {
       priceA: '',
       priceB: '',
       priceC: '',
+      maxDiscountPercent: '100',
       mainImageUrl: '',
     },
   });
@@ -150,6 +152,7 @@ export function ProductFormPage() {
         priceA: String(existing.priceA),
         priceB: String(existing.priceB),
         priceC: String(existing.priceC),
+        maxDiscountPercent: String(existing.maxDiscountPercent ?? 100),
         mainImageUrl: existing.mainImageUrl ?? '',
       });
       // Back-calculate margins from existing purchase price
@@ -186,6 +189,7 @@ export function ProductFormPage() {
       priceA: parseFloat(values.priceA),
       priceB: parseFloat(values.priceB),
       priceC: parseFloat(values.priceC),
+      maxDiscountPercent: values.maxDiscountPercent ? parseFloat(values.maxDiscountPercent) : undefined,
       mainImageUrl: values.mainImageUrl.trim() || undefined,
     };
     saveMutation.mutate(request);
@@ -484,6 +488,29 @@ export function ProductFormPage() {
                   })}
                   error={formState.errors.priceC?.message}
                 />
+              </div>
+            </div>
+
+            {/* Desconto máximo */}
+            <div className="flex items-start gap-3">
+              <div className="flex-1">
+                <Input
+                  label="Desconto máximo (%)"
+                  id="maxDiscountPercent"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  {...register('maxDiscountPercent', {
+                    min: { value: 0, message: 'Mínimo 0%' },
+                    max: { value: 100, message: 'Máximo 100%' },
+                  })}
+                  error={formState.errors.maxDiscountPercent?.message}
+                  helperText="Desconto máximo que um vendedor pode aplicar neste produto"
+                />
+              </div>
+              <div className="mt-6 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                ⚠ Vendedores não poderão ultrapassar este desconto ao criar pedidos
               </div>
             </div>
 

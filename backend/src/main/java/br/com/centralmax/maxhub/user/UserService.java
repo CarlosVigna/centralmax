@@ -42,6 +42,10 @@ public class UserService {
                 .passwordHash(passwordEncoder.encode(request.password()))
                 .role(request.role())
                 .active(true)
+                .commissionPriceA(request.commissionPriceA())
+                .commissionPriceB(request.commissionPriceB())
+                .commissionPriceC(request.commissionPriceC())
+                .territory(request.territory())
                 .build();
         return toResponse(userRepository.save(user));
     }
@@ -55,6 +59,10 @@ public class UserService {
         user.setName(request.name().trim());
         user.setEmail(request.email().trim().toLowerCase());
         user.setRole(request.role());
+        user.setCommissionPriceA(request.commissionPriceA());
+        user.setCommissionPriceB(request.commissionPriceB());
+        user.setCommissionPriceC(request.commissionPriceC());
+        user.setTerritory(request.territory());
         return toResponse(userRepository.save(user));
     }
 
@@ -75,9 +83,11 @@ public class UserService {
         userRepository.save(user);
     }
 
-    private UserResponse toResponse(User user) {
+    public UserResponse toResponse(User user) {
         return new UserResponse(user.getId(), user.getName(), user.getEmail(),
-                user.getRole(), user.isActive(), user.getCreatedAt());
+                user.getRole(), user.isActive(), user.getCreatedAt(),
+                user.getCommissionPriceA(), user.getCommissionPriceB(),
+                user.getCommissionPriceC(), user.getTerritory());
     }
 
     private User findOrThrow(UUID id) {

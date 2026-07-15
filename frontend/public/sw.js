@@ -52,3 +52,29 @@ self.addEventListener('fetch', (event) => {
       .catch(() => caches.match(request))
   );
 });
+
+self.addEventListener('push', (event) => {
+  if (!event.data) return;
+  let data;
+  try { data = event.data.json(); } catch { data = { title: 'MaxHub', body: event.data.text() }; }
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'MaxHub', {
+      body: data.body || '',
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
+      data: { url: data.url || '/admin' },
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url || '/admin';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      const existing = clients.find((c) => c.url.includes(url));
+      if (existing) return existing.focus();
+      return self.clients.openWindow(url);
+    })
+  );
+});

@@ -1,11 +1,14 @@
 package br.com.centralmax.maxhub.customer;
 
+import br.com.centralmax.maxhub.activity.ActivityFeedService;
 import br.com.centralmax.maxhub.common.exception.DuplicateResourceException;
 import br.com.centralmax.maxhub.common.exception.ResourceNotFoundException;
 import br.com.centralmax.maxhub.common.response.PageResponse;
 import br.com.centralmax.maxhub.crm.ContactScheduleService;
 import br.com.centralmax.maxhub.customer.dto.CustomerRequest;
 import br.com.centralmax.maxhub.customer.dto.CustomerResponse;
+import br.com.centralmax.maxhub.security.SecurityUtils;
+import br.com.centralmax.maxhub.user.User;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -29,11 +32,22 @@ public class CustomerService {
     private final CustomerRepository customerRepository;
     private final CustomerMapper customerMapper;
     private final ContactScheduleService contactScheduleService;
+    private final SecurityUtils securityUtils;
+    private final ActivityFeedService activityFeedService;
 
     @Transactional(readOnly = true)
     public PageResponse<CustomerResponse> list(String search, CustomerStatus status, CustomerOrigin origin, Boolean active, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("name").ascending());
-        Page<Customer> result = customerRepository.findAll(buildSpec(search, status, origin, active), pageable);
+        Specification<Customer> spec = buildSpec(search, status, origin, active);
+        if (securityUtils.isVendedor()) {
+            var currentUser = securityUtils.getCurrentUser();
+            if (currentUser.isPresent()) {
+                UUID userId = currentUser.get().getId();
+                spec = spec.and((root, query, cb) ->
+                        cb.equal(root.get("createdByUserId"), userId));
+            }
+        }
+        Page<Customer> result = customerRepository.findAll(spec, pageable);
         return PageResponse.from(result.map(customerMapper::toResponse));
     }
 
@@ -87,6 +101,8 @@ public class CustomerService {
                 .lostReason(blankToNull(request.lostReason()))
                 .build();
 
+        securityUtils.getCurrentUser().ifPresent(u -> customer.setCreatedByUserId(u.getId()));
+
         Customer saved = customerRepository.save(customer);
         if (saved.getContactCadenceDays() != null) {
             contactScheduleService.generateNextSchedule(saved);
@@ -96,6 +112,11 @@ public class CustomerService {
                             saved.getNextContactDate(),
                             blankToNull(request.cadenceReason()) != null ? request.cadenceReason() : "Contato agendado"));
         }
+
+        securityUtils.getCurrentUser().ifPresent(u ->
+                activityFeedService.log(u.getId(), u.getName(), "CREATE", "CUSTOMER",
+                        saved.getId(), saved.getName(), null));
+
         return customerMapper.toResponse(saved);
     }
 

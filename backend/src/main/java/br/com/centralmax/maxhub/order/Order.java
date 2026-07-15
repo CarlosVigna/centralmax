@@ -84,6 +84,9 @@ public class Order {
     @Column(nullable = false)
     private boolean active;
 
+    @Column(name = "created_by_user_id")
+    private UUID createdByUserId;
+
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("createdAt ASC")
     @Builder.Default

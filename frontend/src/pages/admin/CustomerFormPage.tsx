@@ -9,6 +9,7 @@ import { Button } from '../../components/ui/Button';
 import { createCustomer, getCustomer, updateCustomer } from '../../services/customerService';
 import { ORIGIN_OPTIONS, STATUS_OPTIONS, PROSPECT_STATUS_OPTIONS } from '../../types/customer';
 import type { CustomerRequest, ProspectStatus } from '../../types/customer';
+import { useAuth } from '../../hooks/useAuth';
 
 interface CustomerFormValues {
   name: string;
@@ -51,6 +52,7 @@ export function CustomerFormPage() {
   const isEditing = Boolean(id);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const numberInputRef = useRef<HTMLInputElement | null>(null);
   const [cepLoading, setCepLoading] = useState(false);
   const [cepError, setCepError] = useState('');
@@ -96,6 +98,13 @@ export function CustomerFormPage() {
   const prospectStatusWatched = watch('prospectStatus');
   const potentialWatched = watch('commercialPotential');
   const documentTypeWatched = watch('documentType');
+  const neighborhoodWatched = watch('addressNeighborhood');
+
+  const territoryWarning = (() => {
+    if (user?.role !== 'VENDEDOR' || !user.territory || !neighborhoodWatched) return false;
+    const zones = user.territory.split(',').map((z) => z.trim().toLowerCase());
+    return !zones.some((z) => neighborhoodWatched.toLowerCase().includes(z));
+  })();
 
   useEffect(() => {
     if (existing) {
@@ -459,6 +468,11 @@ export function CustomerFormPage() {
               })}
             />
           </div>
+          {territoryWarning && (
+            <p className="mt-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700">
+              ⚠ Este bairro pode estar fora do seu território ({user?.territory}). Confirme com seu gestor antes de cadastrar.
+            </p>
+          )}
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div className="sm:col-span-2">

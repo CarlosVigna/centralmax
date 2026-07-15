@@ -28,6 +28,11 @@ public interface OrderRepository extends JpaRepository<Order, UUID>, JpaSpecific
     @Query("SELECT DISTINCT o FROM Order o LEFT JOIN FETCH o.items WHERE o.status IN :statuses AND o.active = true ORDER BY o.createdAt ASC")
     List<Order> findBoardOrders(@Param("statuses") List<OrderStatus> statuses);
 
+    @Query("SELECT DISTINCT o FROM Order o LEFT JOIN FETCH o.items WHERE o.status IN :statuses AND o.active = true AND o.createdByUserId = :userId ORDER BY o.createdAt ASC")
+    List<Order> findBoardOrdersByUser(@Param("statuses") List<OrderStatus> statuses, @Param("userId") UUID userId);
+
+    List<Order> findAllByCreatedByUserIdAndStatusInAndActiveTrue(UUID userId, List<OrderStatus> statuses);
+
     List<Order> findTop5ByStatusAndActiveOrderByCreatedAtDesc(OrderStatus status, boolean active);
 
     @Query("SELECT DISTINCT o FROM Order o LEFT JOIN FETCH o.items i LEFT JOIN FETCH i.product p WHERE o.status IN :statuses AND o.active = true ORDER BY o.createdAt ASC")

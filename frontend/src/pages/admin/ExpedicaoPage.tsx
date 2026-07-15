@@ -6,6 +6,7 @@ import { updateOrderStatus, revertOrderStatus } from '../../services/orderServic
 import { formatCurrency } from '../../utils/formatCurrency';
 import type { OrderResponse, OrderStatus } from '../../types/order';
 import { nextStatus, previousStatus, STATUS_LABELS } from '../../types/order';
+import { useAuth } from '../../hooks/useAuth';
 
 const BOARD_COLUMNS: { status: OrderStatus; label: string }[] = [
   { status: 'NOVO', label: 'Novo' },
@@ -32,6 +33,8 @@ function secondsSince(ts: number): number {
 
 export function ExpedicaoPage() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const isVendedor = user?.role === 'VENDEDOR';
   const [advancingId, setAdvancingId] = useState<string | null>(null);
   const [revertingId, setRevertingId] = useState<string | null>(null);
   const [confirmRevert, setConfirmRevert] = useState<OrderResponse | null>(null);
@@ -184,6 +187,7 @@ export function ExpedicaoPage() {
                       isAdvancing={advancingId === order.id}
                       onAdvance={() => handleAdvance(order)}
                       isReverting={revertingId === order.id}
+                      isVendedor={isVendedor}
                       onRevert={order.status !== 'NOVO' && order.status !== 'CANCELADO'
                         ? () => setConfirmRevert(order)
                         : undefined}
@@ -205,11 +209,31 @@ interface OrderCardProps {
   onAdvance: () => void;
   isReverting?: boolean;
   onRevert?: () => void;
+  isVendedor?: boolean;
 }
 
-function OrderCard({ order, isAdvancing, onAdvance, isReverting, onRevert }: OrderCardProps) {
+function buildWhatsAppMessage(order: OrderResponse): string | null {
+  const phone = order.customerDisplayPhone;
+  if (!phone) return null;
+  const clean = phone.replace(/\D/g, '');
+  const br = clean.startsWith('55') ? clean : `55${clean}`;
+  const msgs: Record<string, string> = {
+    CONFIRMADO: `Olá ${order.customerDisplayName}! Seu pedido *#${order.orderNumber}* foi confirmado e está sendo preparado.`,
+    EM_SEPARACAO: `Olá ${order.customerDisplayName}! Seu pedido *#${order.orderNumber}* está em separação.`,
+    SAIU_ENTREGA: `Olá ${order.customerDisplayName}! Seu pedido *#${order.orderNumber}* saiu para entrega! Em breve chegaremos.`,
+    ENTREGUE: `Olá ${order.customerDisplayName}! Seu pedido *#${order.orderNumber}* foi entregue. Obrigado pela preferência!`,
+  };
+  const text = msgs[order.status];
+  if (!text) return null;
+  return `https://api.whatsapp.com/send?phone=${br}&text=${encodeURIComponent(text)}`;
+}
+
+function OrderCard({ order, isAdvancing, onAdvance, isReverting, onRevert, isVendedor }: OrderCardProps) {
   const next = nextStatus(order.status);
-  const canAdvance = next !== null && next !== 'CONCLUIDO';
+  const canAdvanceAdmin = next !== null && next !== 'CONCLUIDO';
+  const canAdvanceVendedor = isVendedor && order.status === 'NOVO';
+  const canAdvance = isVendedor ? canAdvanceVendedor : canAdvanceAdmin;
+  const whatsappUrl = isVendedor ? buildWhatsAppMessage(order) : null;
 
   return (
     <div
@@ -232,7 +256,7 @@ function OrderCard({ order, isAdvancing, onAdvance, isReverting, onRevert }: Ord
       <p className="mt-1 text-xs text-neutral-400">{timeAgo(order.createdAt)}</p>
 
       <div className="mt-3 flex gap-2">
-        {onRevert && (
+        {!isVendedor && onRevert && (
           <button
             onClick={onRevert}
             disabled={isReverting}
@@ -250,8 +274,19 @@ function OrderCard({ order, isAdvancing, onAdvance, isReverting, onRevert }: Ord
             className="flex-1 rounded-md bg-secondary py-1.5 text-xs font-semibold text-white
               transition hover:opacity-90 disabled:opacity-50"
           >
-            Avançar →
+            {isVendedor ? 'Confirmar →' : 'Avançar →'}
           </button>
+        )}
+        {isVendedor && !canAdvance && whatsappUrl && (
+          <a
+            href={whatsappUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="flex-1 rounded-md bg-emerald-500 py-1.5 text-center text-xs font-semibold text-white
+              transition hover:opacity-90"
+          >
+            💬 WhatsApp
+          </a>
         )}
         <Link
           to={`/admin/pedidos/${order.id}`}
@@ -259,9 +294,9 @@ function OrderCard({ order, isAdvancing, onAdvance, isReverting, onRevert }: Ord
           rel="noopener noreferrer"
           className={`rounded-md border border-neutral-300 py-1.5 text-center text-xs
             font-medium text-neutral-600 transition hover:bg-neutral-50
-            ${canAdvance ? 'flex-none px-2' : 'flex-1'}`}
+            ${canAdvance || (isVendedor && !canAdvance && whatsappUrl) ? 'flex-none px-2' : 'flex-1'}`}
         >
-          Ver detalhes
+          Ver
         </Link>
       </div>
     </div>

@@ -16,6 +16,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -47,6 +48,18 @@ public class User {
 
     @Column(nullable = false)
     private boolean active;
+
+    @Column(name = "commission_price_a", precision = 5, scale = 2)
+    private BigDecimal commissionPriceA;
+
+    @Column(name = "commission_price_b", precision = 5, scale = 2)
+    private BigDecimal commissionPriceB;
+
+    @Column(name = "commission_price_c", precision = 5, scale = 2)
+    private BigDecimal commissionPriceC;
+
+    @Column(name = "territory", columnDefinition = "TEXT")
+    private String territory;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

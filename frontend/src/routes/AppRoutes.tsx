@@ -1,4 +1,4 @@
-import { Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import { PublicLayout } from '../components/layout/PublicLayout';
 import { AdminLayout } from '../components/layout/AdminLayout';
 import { PrivateRoute } from './PrivateRoute';
@@ -9,6 +9,7 @@ import { CartPage } from '../pages/public/CartPage';
 import { NotFoundPage } from '../pages/public/NotFoundPage';
 import { LoginPage } from '../pages/admin/LoginPage';
 import { DashboardPage } from '../pages/admin/DashboardPage';
+import { VendorDashboardPage } from '../pages/admin/VendorDashboardPage';
 import { ProductsPage } from '../pages/admin/ProductsPage';
 import { ProductFormPage } from '../pages/admin/ProductFormPage';
 import { CategoriesPage } from '../pages/admin/CategoriesPage';
@@ -24,10 +25,21 @@ import { OrderFormPage } from '../pages/admin/OrderFormPage';
 import { FinancialPage } from '../pages/admin/FinancialPage';
 import { UsersPage } from '../pages/admin/UsersPage';
 import { ReportsPage } from '../pages/admin/ReportsPage';
+import { VendorReportsPage } from '../pages/admin/VendorReportsPage';
+import { ActivityFeedPage } from '../pages/admin/ActivityFeedPage';
 import { RomaneioPage } from '../pages/admin/RomaneioPage';
 import { DeliveryRoutePage } from '../pages/admin/DeliveryRoutePage';
 import { WeeklyForecastPage } from '../pages/admin/WeeklyForecastPage';
 import { OrderTrackingPage } from '../pages/public/OrderTrackingPage';
+import { useAuth } from '../hooks/useAuth';
+
+function AdminIndex() {
+  const { user } = useAuth();
+  if (!user) return null;
+  return user.role === 'VENDEDOR'
+    ? <Navigate to="/admin/painel" replace />
+    : <DashboardPage />;
+}
 
 export function AppRoutes() {
   return (
@@ -44,7 +56,8 @@ export function AppRoutes() {
 
       <Route path="/admin" element={<PrivateRoute />}>
         <Route element={<AdminLayout />}>
-          <Route index element={<DashboardPage />} />
+          <Route index element={<AdminIndex />} />
+          <Route path="painel" element={<VendorDashboardPage />} />
           <Route path="produtos" element={<ProductsPage />} />
           <Route path="produtos/novo" element={<ProductFormPage />} />
           <Route path="produtos/:id/editar" element={<ProductFormPage />} />
@@ -65,6 +78,8 @@ export function AppRoutes() {
           <Route path="rota-entrega" element={<DeliveryRoutePage />} />
           <Route path="usuarios" element={<UsersPage />} />
           <Route path="relatorios" element={<ReportsPage />} />
+          <Route path="meus-relatorios" element={<VendorReportsPage />} />
+          <Route path="atividades" element={<ActivityFeedPage />} />
           <Route path="previsao" element={<WeeklyForecastPage />} />
         </Route>
       </Route>

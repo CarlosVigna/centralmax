@@ -5,6 +5,10 @@ export interface AuthenticatedUser {
   name: string;
   email: string;
   role: UserRole;
+  commissionPriceA: number | null;
+  commissionPriceB: number | null;
+  commissionPriceC: number | null;
+  territory: string | null;
 }
 
 export interface LoginResponse {

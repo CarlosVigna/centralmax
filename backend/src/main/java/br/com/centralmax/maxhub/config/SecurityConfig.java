@@ -63,8 +63,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PATCH, "/api/products/*/photos/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/products/*/variations").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/products/*/variations/**").hasRole("ADMIN")
-                        // Fornecedores — leitura autenticada, escrita/admin ADMIN
-                        .requestMatchers(HttpMethod.GET, "/api/suppliers", "/api/suppliers/**").authenticated()
+                        // Fornecedores — somente ADMIN
+                        .requestMatchers(HttpMethod.GET, "/api/suppliers", "/api/suppliers/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/suppliers").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/suppliers/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/suppliers/**").hasRole("ADMIN")
@@ -77,14 +77,18 @@ public class SecurityConfig {
                         .requestMatchers("/api/orders", "/api/orders/**").authenticated()
                         // Notificações — autenticado
                         .requestMatchers("/api/notifications/**").authenticated()
-                        // Financeiro — autenticado
-                        .requestMatchers("/api/financial", "/api/financial/**").authenticated()
+                        // Financeiro — somente ADMIN
+                        .requestMatchers("/api/financial", "/api/financial/**").hasRole("ADMIN")
                         // Usuários — somente ADMIN
                         .requestMatchers("/api/users", "/api/users/**").hasRole("ADMIN")
-                        // Relatórios — autenticado
+                        // Relatórios — autenticado (ADMIN e VENDEDOR)
                         .requestMatchers("/api/reports/**").authenticated()
                         // Dashboard — autenticado
                         .requestMatchers("/api/dashboard/**").authenticated()
+                        // Feed de atividades — somente ADMIN
+                        .requestMatchers("/api/activity-feed/**").hasRole("ADMIN")
+                        // Push subscriptions — autenticado
+                        .requestMatchers("/api/push/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

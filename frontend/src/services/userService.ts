@@ -9,6 +9,10 @@ export interface UserResponse {
   role: UserRole;
   active: boolean;
   createdAt: string;
+  commissionPriceA: number | null;
+  commissionPriceB: number | null;
+  commissionPriceC: number | null;
+  territory: string | null;
 }
 
 export interface UserRequest {
@@ -16,6 +20,10 @@ export interface UserRequest {
   email: string;
   password?: string;
   role: UserRole;
+  commissionPriceA?: number | null;
+  commissionPriceB?: number | null;
+  commissionPriceC?: number | null;
+  territory?: string | null;
 }
 
 export interface ChangePasswordRequest {

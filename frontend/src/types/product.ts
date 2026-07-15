@@ -51,6 +51,7 @@ export interface ProductAdmin {
   priceA: number;
   priceB: number;
   priceC: number;
+  maxDiscountPercent: number;
   mainImageUrl: string | null;
   status: 'ATIVO' | 'INATIVO';
   photos: ProductPhoto[];
@@ -68,6 +69,7 @@ export interface ProductRequest {
   priceA: number;
   priceB: number;
   priceC: number;
+  maxDiscountPercent?: number;
   mainImageUrl?: string;
 }
 

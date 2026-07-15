@@ -24,6 +24,10 @@ interface UserFormValues {
   email: string;
   password: string;
   role: UserRole;
+  commissionPriceA: string;
+  commissionPriceB: string;
+  commissionPriceC: string;
+  territory: string;
 }
 
 export function UsersPage() {
@@ -51,8 +55,11 @@ export function UsersPage() {
     handleSubmit,
     reset,
     setValue,
+    watch,
     formState,
   } = useForm<UserFormValues>({ defaultValues: { role: 'VENDEDOR' } });
+
+  const watchedRole = watch('role');
 
   const {
     register: regPwd,
@@ -92,6 +99,10 @@ export function UsersPage() {
     setValue('email', u.email);
     setValue('role', u.role);
     setValue('password', '');
+    setValue('commissionPriceA', u.commissionPriceA?.toString() ?? '');
+    setValue('commissionPriceB', u.commissionPriceB?.toString() ?? '');
+    setValue('commissionPriceC', u.commissionPriceC?.toString() ?? '');
+    setValue('territory', u.territory ?? '');
     setModalOpen(true);
   }
 
@@ -107,6 +118,10 @@ export function UsersPage() {
       email: values.email,
       role: values.role,
       password: values.password || undefined,
+      commissionPriceA: values.commissionPriceA ? parseFloat(values.commissionPriceA) : null,
+      commissionPriceB: values.commissionPriceB ? parseFloat(values.commissionPriceB) : null,
+      commissionPriceC: values.commissionPriceC ? parseFloat(values.commissionPriceC) : null,
+      territory: values.territory || null,
     };
     saveMutation.mutate({ id: editing?.id, req });
   }
@@ -127,9 +142,14 @@ export function UsersPage() {
     {
       header: 'Role',
       render: (row: UserResponse) => (
-        <Badge variant={row.role === 'ADMIN' ? 'purple' : 'info'}>
-          {row.role}
-        </Badge>
+        <div className="flex flex-col gap-1">
+          <Badge variant={row.role === 'ADMIN' ? 'purple' : 'info'}>
+            {row.role}
+          </Badge>
+          {row.territory && (
+            <span className="text-xs text-neutral-400 truncate max-w-[120px]">{row.territory}</span>
+          )}
+        </div>
       ),
     },
     {
@@ -232,6 +252,55 @@ export function UsersPage() {
               <option value="ADMIN">ADMIN</option>
             </select>
           </div>
+
+          {watchedRole === 'VENDEDOR' && (
+            <div className="rounded-lg border border-blue-100 bg-blue-50 p-4">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-blue-700">
+                Configurações do Vendedor
+              </p>
+              <div className="grid grid-cols-3 gap-3">
+                <Input
+                  label="Comissão Tipo A (%)"
+                  id="commission-a"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  placeholder="ex: 5.00"
+                  {...register('commissionPriceA')}
+                />
+                <Input
+                  label="Comissão Tipo B (%)"
+                  id="commission-b"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  placeholder="ex: 4.00"
+                  {...register('commissionPriceB')}
+                />
+                <Input
+                  label="Comissão Tipo C (%)"
+                  id="commission-c"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  placeholder="ex: 3.00"
+                  {...register('commissionPriceC')}
+                />
+              </div>
+              <div className="mt-3">
+                <Input
+                  label="Território (bairros/regiões, vírgula separada)"
+                  id="territory"
+                  placeholder="ex: Centro, Jardim América, Vila Nova"
+                  {...register('territory')}
+                />
+              </div>
+            </div>
+          )}
+
           {saveMutation.isError && (
             <p className="text-sm text-danger">
               {axios.isAxiosError(saveMutation.error)

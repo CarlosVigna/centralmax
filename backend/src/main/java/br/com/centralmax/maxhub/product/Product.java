@@ -78,6 +78,10 @@ public class Product {
     @Column(name = "price_c", nullable = false, precision = 12, scale = 2)
     private BigDecimal priceC;
 
+    @Column(name = "max_discount_percent", nullable = false, precision = 5, scale = 2)
+    @Builder.Default
+    private BigDecimal maxDiscountPercent = new java.math.BigDecimal("100");
+
     @Column(name = "main_image_url", length = 500)
     private String mainImageUrl;
 
