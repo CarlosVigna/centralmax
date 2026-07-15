@@ -54,9 +54,9 @@ export function UsersPage() {
     register,
     handleSubmit,
     reset,
-    setValue,
     watch,
     formState,
+    unregister,
   } = useForm<UserFormValues>({ defaultValues: { role: 'VENDEDOR' } });
 
   const watchedRole = watch('role');
@@ -95,14 +95,20 @@ export function UsersPage() {
 
   function openEdit(u: UserResponse) {
     setEditing(u);
-    setValue('name', u.name);
-    setValue('email', u.email);
-    setValue('role', u.role);
-    setValue('password', '');
-    setValue('commissionPriceA', u.commissionPriceA?.toString() ?? '');
-    setValue('commissionPriceB', u.commissionPriceB?.toString() ?? '');
-    setValue('commissionPriceC', u.commissionPriceC?.toString() ?? '');
-    setValue('territory', u.territory ?? '');
+    // Limpa o registro do campo password — ele fica registrado com required:true
+    // da sessão de criação mesmo após o modal fechar (shouldUnregister=false padrão),
+    // bloqueando o handleSubmit silenciosamente no modo edição.
+    unregister('password');
+    reset({
+      name: u.name,
+      email: u.email,
+      password: '',
+      role: u.role,
+      commissionPriceA: u.commissionPriceA?.toString() ?? '',
+      commissionPriceB: u.commissionPriceB?.toString() ?? '',
+      commissionPriceC: u.commissionPriceC?.toString() ?? '',
+      territory: u.territory ?? '',
+    });
     setModalOpen(true);
   }
 
