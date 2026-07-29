@@ -7,6 +7,54 @@ import { formatCurrency } from '../../utils/formatCurrency';
 import type { OrderResponse, OrderStatus } from '../../types/order';
 import { nextStatus, previousStatus, STATUS_LABELS } from '../../types/order';
 import { useAuth } from '../../hooks/useAuth';
+import { printHeader, printFooter, printDocument } from '../../utils/printUtils';
+
+const PRINTABLE_STATUSES: OrderStatus[] = [
+  'NOVO', 'CONFIRMADO', 'EM_SEPARACAO', 'SAIU_ENTREGA', 'ENTREGUE',
+];
+
+function handlePrintExpedition(selectedStatuses: OrderStatus[], allOrders: OrderResponse[]) {
+  const filtered = allOrders.filter((o) => selectedStatuses.includes(o.status));
+
+  const content = `
+    ${printHeader('Central de Expedição',
+      `Impresso em ${new Date().toLocaleString('pt-BR')} | Status: ${selectedStatuses.map((s) => STATUS_LABELS[s]).join(', ')}`)}
+
+    ${selectedStatuses.map((status) => {
+      const orders = filtered.filter((o) => o.status === status);
+      if (!orders.length) return '';
+      return `
+        <div style="margin:16px 0 8px;font-size:14px;font-weight:700;color:#0f1f3d;border-left:4px solid #f97316;padding-left:8px">
+          ${STATUS_LABELS[status]} (${orders.length})
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Pedido</th>
+              <th>Cliente</th>
+              <th>Itens</th>
+              <th>Total</th>
+              <th>Canal</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${orders.map((o) => `
+              <tr>
+                <td><strong>${o.orderNumber}</strong></td>
+                <td>${o.customerDisplayName}</td>
+                <td>${o.items?.length || 0} itens</td>
+                <td>${formatCurrency(o.totalAmount)}</td>
+                <td>${o.salesChannelName || '—'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }).join('')}
+    ${printFooter()}
+  `;
+  printDocument(content, 'Central de Expedição');
+}
 
 const BOARD_COLUMNS: { status: OrderStatus; label: string }[] = [
   { status: 'NOVO', label: 'Novo' },
@@ -38,6 +86,8 @@ export function ExpedicaoPage() {
   const [advancingId, setAdvancingId] = useState<string | null>(null);
   const [revertingId, setRevertingId] = useState<string | null>(null);
   const [confirmRevert, setConfirmRevert] = useState<OrderResponse | null>(null);
+  const [printModalOpen, setPrintModalOpen] = useState(false);
+  const [printStatuses, setPrintStatuses] = useState<OrderStatus[]>(PRINTABLE_STATUSES);
 
   const {
     data: orders = [],
@@ -105,6 +155,13 @@ export function ExpedicaoPage() {
             Atualizado há {updatedSecondsAgo}s
           </span>
           <button
+            onClick={() => setPrintModalOpen(true)}
+            className="rounded-md border border-neutral-300 px-3 py-1.5 text-xs font-medium
+              text-neutral-600 hover:bg-neutral-100 transition"
+          >
+            🖨️ Imprimir Expedição
+          </button>
+          <button
             onClick={() => refetch()}
             className="rounded-md border border-neutral-300 px-3 py-1.5 text-xs font-medium
               text-neutral-600 hover:bg-neutral-100 transition"
@@ -113,6 +170,51 @@ export function ExpedicaoPage() {
           </button>
         </div>
       </div>
+
+      {printModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-lg">
+            <h3 className="mb-3 text-base font-semibold text-neutral-900">Imprimir Expedição</h3>
+            <p className="mb-3 text-sm text-neutral-600">Selecione quais status incluir:</p>
+            <div className="mb-5 flex flex-col gap-2">
+              {PRINTABLE_STATUSES.map((status) => (
+                <label key={status} className="flex cursor-pointer items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={printStatuses.includes(status)}
+                    onChange={() =>
+                      setPrintStatuses((prev) =>
+                        prev.includes(status) ? prev.filter((s) => s !== status) : [...prev, status],
+                      )
+                    }
+                  />
+                  {STATUS_LABELS[status]}
+                </label>
+              ))}
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setPrintModalOpen(false)}
+                className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium
+                  text-neutral-700 transition hover:bg-neutral-50"
+              >
+                Cancelar
+              </button>
+              <button
+                disabled={printStatuses.length === 0}
+                onClick={() => {
+                  handlePrintExpedition(printStatuses, orders);
+                  setPrintModalOpen(false);
+                }}
+                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white
+                  transition hover:opacity-90 disabled:opacity-50"
+              >
+                Imprimir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isLoading && <p className="text-sm text-neutral-600">Carregando board...</p>}
       {isError && (

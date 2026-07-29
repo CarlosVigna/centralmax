@@ -19,6 +19,7 @@ import type {
   FinancialEntryType,
   FinancialFilters,
 } from '../../types/financial';
+import { printHeader, printFooter, printDocument } from '../../utils/printUtils';
 
 const RECEITA_CATEGORIES = ['Venda', 'Outros'];
 const DESPESA_CATEGORIES = [
@@ -38,6 +39,63 @@ const fmtDate = (s: string | null | undefined) => {
 const today = new Date().toISOString().split('T')[0];
 const isPast = (dueDate: string | null | undefined, status: string) =>
   !!dueDate && status !== 'PAGO' && status !== 'CANCELADO' && dueDate < today;
+
+function handlePrintFinancial(
+  filters: FinancialFilters,
+  summary: { receitas: number; despesas: number; saldoMes: number } | undefined,
+  entries: FinancialEntryResponse[],
+) {
+  const content = `
+    ${printHeader('Relatório Financeiro',
+      `Período: ${filters.startDate || 'Início'} a ${filters.endDate || 'Hoje'}`)}
+
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
+      <div style="background:#e8f5e9;padding:12px;border-radius:8px">
+        <div style="font-size:11px">Receitas</div>
+        <div style="font-size:16px;font-weight:700;color:#2e7d32">${fmtCurrency(summary?.receitas ?? 0)}</div>
+      </div>
+      <div style="background:#ffebee;padding:12px;border-radius:8px">
+        <div style="font-size:11px">Despesas</div>
+        <div style="font-size:16px;font-weight:700;color:#c62828">${fmtCurrency(summary?.despesas ?? 0)}</div>
+      </div>
+      <div style="background:#e3f2fd;padding:12px;border-radius:8px">
+        <div style="font-size:11px">Saldo</div>
+        <div style="font-size:16px;font-weight:700;color:${(summary?.saldoMes ?? 0) >= 0 ? '#1565c0' : '#c62828'}">
+          ${fmtCurrency(summary?.saldoMes ?? 0)}
+        </div>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Descrição</th>
+          <th>Categoria</th>
+          <th>Tipo</th>
+          <th style="text-align:right">Valor</th>
+          <th>Status</th>
+          <th>Vencimento</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${entries.map((e) => `
+          <tr>
+            <td>${e.description}</td>
+            <td>${e.category ?? '—'}</td>
+            <td><span class="badge ${e.type === 'RECEITA' ? 'badge-green' : 'badge-red'}">${e.typeLabel}</span></td>
+            <td style="text-align:right;color:${e.type === 'RECEITA' ? '#2e7d32' : '#c62828'}">
+              ${e.type === 'DESPESA' ? '-' : ''}${fmtCurrency(e.amount)}
+            </td>
+            <td>${e.statusLabel}</td>
+            <td>${fmtDate(e.dueDate)}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+    ${printFooter()}
+  `;
+  printDocument(content, 'Relatório Financeiro');
+}
 
 export function FinancialPage() {
   const qc = useQueryClient();
@@ -131,9 +189,17 @@ export function FinancialPage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-neutral-900">Financeiro</h1>
-        <button onClick={openCreate} className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90">
-          + Novo Lançamento
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => handlePrintFinancial(filters, summary, entries?.content ?? [])}
+            className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+          >
+            🖨️ Imprimir
+          </button>
+          <button onClick={openCreate} className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90">
+            + Novo Lançamento
+          </button>
+        </div>
       </div>
 
       {/* Summary Cards */}

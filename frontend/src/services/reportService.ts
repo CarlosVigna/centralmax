@@ -80,3 +80,44 @@ export async function getWeeklyForecast(): Promise<WeeklyForecastResponse> {
   const { data } = await api.get<WeeklyForecastResponse>('/reports/weekly-forecast');
   return data;
 }
+
+export interface ChannelProfitability {
+  channelName: string;
+  totalOrders: number;
+  grossRevenue: number;
+  totalFees: number;
+  vendorCommissions: number;
+  netProfit: number;
+  profitMargin: number;
+  avgOrderValue: number;
+}
+
+export interface ChannelProfitabilityTotals {
+  totalOrders: number;
+  grossRevenue: number;
+  totalFees: number;
+  vendorCommissions: number;
+  netProfit: number;
+  profitMargin: number;
+}
+
+export interface ChannelProfitabilityResponse {
+  period: string;
+  channels: ChannelProfitability[];
+  totals: ChannelProfitabilityTotals;
+}
+
+export async function getChannelProfitability(
+  startDate?: string,
+  endDate?: string,
+  channelIds?: string[],
+): Promise<ChannelProfitabilityResponse> {
+  const { data } = await api.get<ChannelProfitabilityResponse>('/reports/channel-profitability', {
+    params: {
+      startDate,
+      endDate,
+      channelIds: channelIds && channelIds.length > 0 ? channelIds.join(',') : undefined,
+    },
+  });
+  return data;
+}

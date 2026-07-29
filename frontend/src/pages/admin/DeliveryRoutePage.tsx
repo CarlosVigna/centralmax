@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Button } from '../../components/ui/Button';
 import { getDeliveryRoute } from '../../services/deliveryRouteService';
 import type { DeliveryRouteStop } from '../../services/deliveryRouteService';
+import { printHeader, printFooter, printDocument } from '../../utils/printUtils';
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
@@ -39,6 +40,39 @@ function groupByNeighborhood(stops: DeliveryRouteStop[]): { neighborhood: string
     .map(([neighborhood, stops]) => ({ neighborhood, stops }));
 }
 
+function handlePrint(date: string, stops: DeliveryRouteStop[]) {
+  const content = `
+    ${printHeader('Rota de Entrega', `Data: ${new Date(date + 'T00:00:00').toLocaleDateString('pt-BR')} | ${stops.length} paradas`)}
+
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Cliente</th>
+          <th>Endereço</th>
+          <th>Telefone</th>
+          <th>Itens</th>
+          <th>Pedido</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${stops.map((stop, i) => `
+          <tr>
+            <td style="font-weight:700;color:#f97316">${i + 1}</td>
+            <td><strong>${stop.customerName}</strong></td>
+            <td>${stop.address || '— sem endereço —'}</td>
+            <td>${stop.phone || '—'}</td>
+            <td style="font-size:10px">${stop.items}</td>
+            <td style="font-weight:600">${stop.orderNumber}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+    ${printFooter()}
+  `;
+  printDocument(content, 'Rota de Entrega');
+}
+
 export function DeliveryRoutePage() {
   const [date, setDate] = useState(todayIso());
   const [fetch, setFetch] = useState(false);
@@ -65,11 +99,18 @@ export function DeliveryRoutePage() {
           <h1 className="text-2xl font-bold text-neutral-900">Rota de Entrega</h1>
           <p className="text-sm text-neutral-500">Pedidos com status "Saiu p/ Entrega"</p>
         </div>
-        {mapsUrl && (
-          <a href={mapsUrl} target="_blank" rel="noreferrer">
-            <Button>Abrir Rota no Google Maps</Button>
-          </a>
-        )}
+        <div className="flex gap-2">
+          {data && data.stops.length > 0 && (
+            <Button variant="outline" onClick={() => handlePrint(date, orderedStops)}>
+              🖨️ Imprimir Rota
+            </Button>
+          )}
+          {mapsUrl && (
+            <a href={mapsUrl} target="_blank" rel="noreferrer">
+              <Button>Abrir Rota no Google Maps</Button>
+            </a>
+          )}
+        </div>
       </div>
 
       {/* Filtro de data */}

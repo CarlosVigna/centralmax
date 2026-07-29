@@ -12,6 +12,59 @@ import { listAllCategories } from '../../services/categoryService';
 import { formatCurrency } from '../../utils/formatCurrency';
 import type { ProductAdmin, ImportResult } from '../../types/product';
 import { Pagination } from '../../components/ui/Pagination';
+import { printHeader, printFooter, printDocument } from '../../utils/printUtils';
+
+function handlePrintProductList(products: ProductAdmin[]) {
+  const content = `
+    ${printHeader('Lista de Produtos', `${products.length} produto(s)`)}
+    <table>
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>Categoria</th>
+          <th style="text-align:right">Preço A</th>
+          <th style="text-align:right">Preço B</th>
+          <th style="text-align:right">Preço C</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${products.map((p) => `
+          <tr>
+            <td><strong>${p.name}</strong></td>
+            <td>${p.categoryName}</td>
+            <td style="text-align:right">${formatCurrency(p.priceA)}</td>
+            <td style="text-align:right">${formatCurrency(p.priceB)}</td>
+            <td style="text-align:right">${formatCurrency(p.priceC)}</td>
+            <td>${p.status === 'ATIVO' ? 'Ativo' : 'Inativo'}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+    ${printFooter()}
+  `;
+  printDocument(content, 'Lista de Produtos');
+}
+
+function handlePrintCatalog(products: ProductAdmin[]) {
+  const content = `
+    ${printHeader('Catálogo de Produtos')}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      ${products.map((p) => `
+        <div style="border:1px solid #eee;border-radius:8px;padding:12px;margin-bottom:12px">
+          <div style="font-size:10px;color:#999">SKU: ${p.sku ?? '—'}</div>
+          <div style="font-size:13px;font-weight:700;color:#0f1f3d;margin-bottom:6px">${p.name}</div>
+          ${p.mainImageUrl ? `<img src="${p.mainImageUrl}" style="width:100%;max-height:140px;object-fit:contain;margin-bottom:6px"/>` : ''}
+          ${p.description ? `<div style="font-size:11px;color:#555;margin-bottom:6px">${p.description}</div>` : ''}
+          <div style="font-size:11px;color:#666">Qtd mínima: ${p.minQuantity}</div>
+          <div style="font-size:13px;font-weight:700;color:#f97316">Preço: ${formatCurrency(p.priceC)}</div>
+        </div>
+      `).join('')}
+    </div>
+    ${printFooter()}
+  `;
+  printDocument(content, 'Catálogo de Produtos');
+}
 
 const CSV_TEMPLATE_HEADER = 'sku,nome,descricao,categoria,fornecedor,preco_custo,preco_a,preco_b,preco_c,qtd_minima\n';
 const CSV_TEMPLATE_EXAMPLE = '100638,Caixa Kraft 20x20x15,Caixa para envio,Embalagens,Fornecedor A,2.50,3.00,3.25,3.75,1\n';
@@ -214,6 +267,12 @@ export function ProductsPage() {
           </Button>
           <Button variant="outline" size="sm" onClick={() => { setImportResult(null); setShowImport(true); }}>
             Importar CSV
+          </Button>
+          <Button variant="outline" size="sm" disabled={products.length === 0} onClick={() => handlePrintProductList(products)}>
+            🖨️ Imprimir Lista
+          </Button>
+          <Button variant="outline" size="sm" disabled={products.length === 0} onClick={() => handlePrintCatalog(products)}>
+            🖨️ Imprimir Catálogo
           </Button>
           <Link to="/admin/produtos/novo">
             <Button>Novo produto</Button>

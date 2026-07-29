@@ -1,8 +1,10 @@
 package br.com.centralmax.maxhub.report;
 
 import br.com.centralmax.maxhub.customer.CustomerRepository;
+import br.com.centralmax.maxhub.order.Order;
 import br.com.centralmax.maxhub.order.OrderRepository;
 import br.com.centralmax.maxhub.order.OrderStatus;
+import br.com.centralmax.maxhub.report.dto.ChannelProfitabilityResponse;
 import br.com.centralmax.maxhub.report.dto.CustomerReportResponse;
 import br.com.centralmax.maxhub.report.dto.SalesReportResponse;
 import br.com.centralmax.maxhub.report.dto.WeeklyForecastResponse;
@@ -149,6 +151,82 @@ public class ReportService {
                 + " – " + today.plusDays(6).format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
 
         return new WeeklyForecastResponse(period, items);
+    }
+
+    @Transactional(readOnly = true)
+    public ChannelProfitabilityResponse getChannelProfitability(LocalDate startDate, LocalDate endDate, List<java.util.UUID> channelIds) {
+        LocalDate now = LocalDate.now(ZoneOffset.UTC);
+        LocalDate start = startDate != null ? startDate : now.withDayOfMonth(1);
+        LocalDate end = endDate != null ? endDate : now.withDayOfMonth(now.lengthOfMonth());
+
+        Instant instantStart = start.atStartOfDay(ZoneOffset.UTC).toInstant();
+        Instant instantEnd = end.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+
+        List<Order> orders = orderRepository.findForChannelProfitability(instantStart, instantEnd);
+        if (channelIds != null && !channelIds.isEmpty()) {
+            orders = orders.stream()
+                    .filter(o -> channelIds.contains(o.getSalesChannel().getId()))
+                    .toList();
+        }
+
+        Map<String, BigDecimal[]> byChannel = new LinkedHashMap<>();
+        // Cada entrada: [orders, grossRevenue, totalFees, netProfit]
+        for (Order order : orders) {
+            String channelName = order.getSalesChannel().getName();
+            BigDecimal[] agg = byChannel.computeIfAbsent(channelName,
+                    k -> new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO});
+            BigDecimal totalAmount = order.getTotalAmount() != null ? order.getTotalAmount() : BigDecimal.ZERO;
+            BigDecimal totalFee = order.getChannelTotalFee() != null ? order.getChannelTotalFee() : BigDecimal.ZERO;
+            BigDecimal netProfit = order.getNetProfit() != null ? order.getNetProfit() : BigDecimal.ZERO;
+
+            agg[0] = agg[0].add(BigDecimal.ONE);
+            agg[1] = agg[1].add(totalAmount);
+            agg[2] = agg[2].add(totalFee);
+            agg[3] = agg[3].add(netProfit);
+        }
+
+        List<ChannelProfitabilityResponse.ChannelProfitability> channels = byChannel.entrySet().stream()
+                .map(e -> {
+                    long totalOrders = e.getValue()[0].longValue();
+                    BigDecimal grossRevenue = e.getValue()[1];
+                    BigDecimal totalFees = e.getValue()[2];
+                    BigDecimal netProfit = e.getValue()[3];
+                    BigDecimal vendorCommissions = grossRevenue.subtract(totalFees).subtract(netProfit);
+                    BigDecimal profitMargin = grossRevenue.compareTo(BigDecimal.ZERO) > 0
+                            ? netProfit.divide(grossRevenue, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100"))
+                            : BigDecimal.ZERO;
+                    BigDecimal avgOrderValue = totalOrders > 0
+                            ? grossRevenue.divide(BigDecimal.valueOf(totalOrders), 2, RoundingMode.HALF_UP)
+                            : BigDecimal.ZERO;
+                    return new ChannelProfitabilityResponse.ChannelProfitability(
+                            e.getKey(), totalOrders, grossRevenue, totalFees, vendorCommissions,
+                            netProfit, profitMargin.setScale(2, RoundingMode.HALF_UP), avgOrderValue);
+                })
+                .sorted((a, b) -> b.grossRevenue().compareTo(a.grossRevenue()))
+                .toList();
+
+        long totalOrders = channels.stream().mapToLong(ChannelProfitabilityResponse.ChannelProfitability::totalOrders).sum();
+        BigDecimal totalGrossRevenue = channels.stream().map(ChannelProfitabilityResponse.ChannelProfitability::grossRevenue)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalFees = channels.stream().map(ChannelProfitabilityResponse.ChannelProfitability::totalFees)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalVendorCommissions = channels.stream().map(ChannelProfitabilityResponse.ChannelProfitability::vendorCommissions)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalNetProfit = channels.stream().map(ChannelProfitabilityResponse.ChannelProfitability::netProfit)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalMargin = totalGrossRevenue.compareTo(BigDecimal.ZERO) > 0
+                ? totalNetProfit.divide(totalGrossRevenue, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100"))
+                : BigDecimal.ZERO;
+
+        String period = start.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                + " a " + end.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+
+        return new ChannelProfitabilityResponse(
+                period,
+                channels,
+                new ChannelProfitabilityResponse.Totals(
+                        totalOrders, totalGrossRevenue, totalFees, totalVendorCommissions,
+                        totalNetProfit, totalMargin.setScale(2, RoundingMode.HALF_UP)));
     }
 
     private BigDecimal toBigDecimal(Object value) {

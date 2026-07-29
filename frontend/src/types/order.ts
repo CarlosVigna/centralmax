@@ -64,6 +64,12 @@ export interface OrderResponse {
   financialStatus: FinancialStatus;
   notes: string | null;
   totalAmount: number;
+  salesChannelId: string | null;
+  salesChannelName: string | null;
+  channelFixedFee: number;
+  channelVariableFee: number;
+  channelTotalFee: number;
+  netProfit: number;
   items: OrderItemResponse[];
   createdAt: string;
   updatedAt: string;
@@ -82,6 +88,7 @@ export interface OrderRequest {
   notes?: string;
   nfNumber?: string;
   estimatedDeliveryDate?: string;
+  salesChannelId?: string;
   items: OrderItemRequest[];
   paymentCondition?: PaymentCondition;
 }

@@ -13,7 +13,8 @@ import {
   STATUS_BADGE_VARIANT,
   STATUS_LABELS,
 } from '../../types/order';
-import type { FinancialStatus, OrderItemResponse } from '../../types/order';
+import type { FinancialStatus, OrderItemResponse, OrderResponse } from '../../types/order';
+import { printHeader, printFooter, printDocument } from '../../utils/printUtils';
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleString('pt-BR');
@@ -47,6 +48,74 @@ function buildWhatsAppUrl(phone: string, order: {
   const clean = phone.replace(/\D/g, '');
   const br = clean.startsWith('55') ? clean : `55${clean}`;
   return `https://api.whatsapp.com/send?phone=${br}&text=${encodeURIComponent(msg)}`;
+}
+
+function handlePrint(order: OrderResponse) {
+  const content = `
+    ${printHeader(`Pedido ${order.orderNumber}`, `Emitido em ${formatDate(order.createdAt)}`)}
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+      <div>
+        <strong>Cliente</strong><br>
+        ${order.customerDisplayName}<br>
+        ${order.customerDisplayPhone || ''}
+      </div>
+      <div>
+        <strong>Informações do Pedido</strong><br>
+        Canal: ${order.salesChannelName || 'Não informado'}<br>
+        Pagamento: ${order.paymentConditionLabel}<br>
+        ${order.nfNumber ? `NF: ${order.nfNumber}<br>` : ''}
+        ${order.estimatedDeliveryDate ? `Prazo: ${formatLocalDate(order.estimatedDeliveryDate)}<br>` : ''}
+        Status: ${order.statusLabel}
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Produto</th>
+          <th style="text-align:right">Qtd</th>
+          <th style="text-align:right">Unit.</th>
+          <th style="text-align:right">Desc.</th>
+          <th style="text-align:right">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${order.items.map((item) => `
+          <tr>
+            <td>${item.productName}</td>
+            <td style="text-align:right">${item.quantity}</td>
+            <td style="text-align:right">${formatCurrency(item.unitPrice)}</td>
+            <td style="text-align:right">${item.discountPercent > 0 ? item.discountPercent + '%' : '—'}</td>
+            <td style="text-align:right"><strong>${formatCurrency(item.subtotal)}</strong></td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+
+    <div style="text-align:right;margin-top:8px">
+      <strong style="font-size:16px">Total: ${formatCurrency(order.totalAmount)}</strong>
+      ${order.channelTotalFee > 0 ? `
+        <br><span style="color:#666;font-size:11px">
+          Taxa ${order.salesChannelName}: -${formatCurrency(order.channelTotalFee)}
+        </span>
+      ` : ''}
+      ${order.netProfit > 0 ? `
+        <br><span style="color:#2e7d32;font-size:12px">
+          Lucro líquido: ${formatCurrency(order.netProfit)}
+        </span>
+      ` : ''}
+    </div>
+
+    ${order.notes ? `
+      <div style="margin-top:12px;padding:8px;background:#f5f5f5;border-radius:4px">
+        <strong>Observações:</strong> ${order.notes}
+      </div>
+    ` : ''}
+
+    ${printFooter()}
+  `;
+  printDocument(content, `Pedido ${order.orderNumber}`);
 }
 
 export function OrderDetailPage() {
@@ -165,15 +234,7 @@ export function OrderDetailPage() {
   const hasPhone = Boolean(effectivePhone);
 
   return (
-    <div id="order-print">
-      <style>{`
-        @media print {
-          body > * { display: none !important; }
-          #order-print, #order-print * { display: revert !important; }
-          #order-print { padding: 16px; }
-          button, a[role="button"], .no-print { display: none !important; }
-        }
-      `}</style>
+    <div>
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <Link to="/admin/pedidos" className="text-sm text-primary hover:underline">
           ← Pedidos
@@ -228,7 +289,7 @@ export function OrderDetailPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => window.print()}
+            onClick={() => handlePrint(order)}
           >
             🖨️ Imprimir
           </Button>

@@ -2,6 +2,7 @@ package br.com.centralmax.maxhub.order;
 
 import br.com.centralmax.maxhub.customer.Customer;
 import br.com.centralmax.maxhub.financial.FinancialEntry;
+import br.com.centralmax.maxhub.saleschannel.SalesChannel;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -81,6 +82,26 @@ public class Order {
     @Column(name = "total_amount", nullable = false, precision = 12, scale = 2)
     private BigDecimal totalAmount;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sales_channel_id")
+    private SalesChannel salesChannel;
+
+    @Column(name = "channel_fixed_fee", precision = 15, scale = 2)
+    @Builder.Default
+    private BigDecimal channelFixedFee = BigDecimal.ZERO;
+
+    @Column(name = "channel_variable_fee", precision = 15, scale = 2)
+    @Builder.Default
+    private BigDecimal channelVariableFee = BigDecimal.ZERO;
+
+    @Column(name = "channel_total_fee", precision = 15, scale = 2)
+    @Builder.Default
+    private BigDecimal channelTotalFee = BigDecimal.ZERO;
+
+    @Column(name = "net_profit", precision = 15, scale = 2)
+    @Builder.Default
+    private BigDecimal netProfit = BigDecimal.ZERO;
+
     @Column(nullable = false)
     private boolean active;
 
@@ -111,6 +132,10 @@ public class Order {
         if (paymentCondition == null) paymentCondition = PaymentCondition.NA_ENTREGA;
         active = true;
         if (totalAmount == null) totalAmount = BigDecimal.ZERO;
+        if (channelFixedFee == null) channelFixedFee = BigDecimal.ZERO;
+        if (channelVariableFee == null) channelVariableFee = BigDecimal.ZERO;
+        if (channelTotalFee == null) channelTotalFee = BigDecimal.ZERO;
+        if (netProfit == null) netProfit = BigDecimal.ZERO;
     }
 
     @PreUpdate

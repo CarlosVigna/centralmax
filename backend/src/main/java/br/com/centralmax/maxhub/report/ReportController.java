@@ -1,5 +1,6 @@
 package br.com.centralmax.maxhub.report;
 
+import br.com.centralmax.maxhub.report.dto.ChannelProfitabilityResponse;
 import br.com.centralmax.maxhub.report.dto.CustomerReportResponse;
 import br.com.centralmax.maxhub.report.dto.SalesReportResponse;
 import br.com.centralmax.maxhub.report.dto.WeeklyForecastResponse;
@@ -12,6 +13,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
+import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/reports")
@@ -37,5 +40,13 @@ public class ReportController {
     @GetMapping("/weekly-forecast")
     public ResponseEntity<WeeklyForecastResponse> weeklyForecast() {
         return ResponseEntity.ok(reportService.getWeeklyForecast());
+    }
+
+    @GetMapping("/channel-profitability")
+    public ResponseEntity<ChannelProfitabilityResponse> channelProfitability(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(required = false) List<UUID> channelIds) {
+        return ResponseEntity.ok(reportService.getChannelProfitability(startDate, endDate, channelIds));
     }
 }

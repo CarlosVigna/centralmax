@@ -103,6 +103,13 @@ const IconX = () => (
     <path d="M18 6L6 18M6 6l12 12" />
   </svg>
 );
+const IconGlobe = () => (
+  <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+    <circle cx="12" cy="12" r="10" />
+    <line x1="2" y1="12" x2="22" y2="12" />
+    <path d="M12 2a15.3 15.3 0 010 20 15.3 15.3 0 010-20z" />
+  </svg>
+);
 
 const ADMIN_GROUPS: NavGroup[] = [
   {
@@ -138,6 +145,12 @@ const ADMIN_GROUPS: NavGroup[] = [
     items: [
       { to: '/admin/usuarios', label: 'Usuários', icon: <IconUserCog /> },
       { to: '/admin/atividades', label: 'Atividades', icon: <IconActivity /> },
+    ],
+  },
+  {
+    group: 'CONFIGURAÇÕES',
+    items: [
+      { to: '/admin/canais', label: 'Canais de Venda', icon: <IconGlobe /> },
     ],
   },
 ];

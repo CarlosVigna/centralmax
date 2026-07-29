@@ -20,6 +20,8 @@ public interface OrderMapper {
             expression = "java(order.getCustomer() != null ? order.getCustomer().getName() : order.getCustomerName())")
     @Mapping(target = "customerDisplayPhone",
             expression = "java(order.getCustomer() != null ? order.getCustomer().getPhone() : order.getCustomerPhone())")
+    @Mapping(target = "salesChannelId", source = "salesChannel.id")
+    @Mapping(target = "salesChannelName", source = "salesChannel.name")
     @Mapping(target = "statusLabel",
             expression = "java(br.com.centralmax.maxhub.order.dto.OrderResponse.labelOf(order.getStatus()))")
     @Mapping(target = "paymentConditionLabel",

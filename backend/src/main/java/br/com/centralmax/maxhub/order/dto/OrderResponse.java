@@ -25,6 +25,12 @@ public record OrderResponse(
         String financialStatus,
         String notes,
         BigDecimal totalAmount,
+        UUID salesChannelId,
+        String salesChannelName,
+        BigDecimal channelFixedFee,
+        BigDecimal channelVariableFee,
+        BigDecimal channelTotalFee,
+        BigDecimal netProfit,
         List<OrderItemResponse> items,
         Instant createdAt,
         Instant updatedAt

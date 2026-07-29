@@ -12,6 +12,79 @@ import { STATUS_OPTIONS, ORIGIN_OPTIONS } from '../../types/customer';
 import type { Customer, CustomerOrigin, CustomerStatus } from '../../types/customer';
 import { Pagination } from '../../components/ui/Pagination';
 import { useSearchParams } from 'react-router-dom';
+import { printHeader, printFooter, printDocument } from '../../utils/printUtils';
+
+const fmtCurrency = (v: number) =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+
+function handlePrintList(customers: Customer[]) {
+  const content = `
+    ${printHeader('Lista de Clientes', `${customers.length} cliente(s)`)}
+    <table>
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>Telefone</th>
+          <th>Status</th>
+          <th>Origem</th>
+          <th>Cadastro</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${customers.map((c) => `
+          <tr>
+            <td><strong>${c.name}</strong></td>
+            <td>${c.phone ?? '—'}</td>
+            <td>${c.statusLabel}</td>
+            <td>${c.originLabel}</td>
+            <td>${formatDate(c.createdAt)}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+    ${printFooter()}
+  `;
+  printDocument(content, 'Lista de Clientes');
+}
+
+function handlePrintProfiles(customers: Customer[]) {
+  const content = customers.map((c, i) => `
+    ${printHeader(c.name, c.businessType ?? undefined)}
+    <div style="margin-bottom:12px;font-size:12px;color:#444">
+      ${c.document ? `${c.documentType ?? 'Documento'}: ${c.document}<br>` : ''}
+      ${c.phone ? `Tel: ${c.phone}<br>` : ''}
+      ${c.email ? `Email: ${c.email}<br>` : ''}
+      ${c.fullAddress ? `${c.fullAddress}<br>` : ''}
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;font-size:12px">
+      <div>Tipo de negócio: <strong>${c.businessType ?? '—'}</strong></div>
+      <div>Potencial: <strong>${'★'.repeat(c.commercialPotential ?? 0)}${'☆'.repeat(5 - (c.commercialPotential ?? 0))}</strong></div>
+      <div>Origem: <strong>${c.originLabel}</strong></div>
+      <div>Cliente desde: <strong>${formatDate(c.createdAt)}</strong></div>
+    </div>
+    <div style="margin:16px 0 8px;font-size:13px;font-weight:700;color:#0f1f3d;border-left:4px solid #f97316;padding-left:8px">
+      HISTÓRICO DE COMPRAS
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;font-size:12px">
+      <div>Total comprado: <strong>${fmtCurrency(c.totalPurchased ?? 0)}</strong></div>
+      <div>Ticket médio: <strong>${fmtCurrency(c.averageTicket ?? 0)}</strong></div>
+      <div>Última compra: <strong>${c.lastPurchaseDate ? formatDate(c.lastPurchaseDate) : '—'}</strong></div>
+      <div>Frequência: <strong>${c.cadenceLabel ?? '—'}</strong></div>
+    </div>
+    ${c.favoriteProducts && c.favoriteProducts.length > 0 ? `
+      <div style="font-size:12px;margin-bottom:12px">Produtos favoritos: ${c.favoriteProducts.join(', ')}</div>
+    ` : ''}
+    ${c.commercialNotes ? `
+      <div style="margin:16px 0 8px;font-size:13px;font-weight:700;color:#0f1f3d;border-left:4px solid #f97316;padding-left:8px">
+        OBSERVAÇÕES COMERCIAIS
+      </div>
+      <div style="font-size:12px;font-style:italic">"${c.commercialNotes}"</div>
+    ` : ''}
+    ${printFooter()}
+    ${i < customers.length - 1 ? '<div style="page-break-after:always"></div>' : ''}
+  `).join('');
+  printDocument(content, 'Perfis de Clientes');
+}
 
 function statusVariant(status: CustomerStatus): 'neutral' | 'success' | 'danger' {
   if (status === 'ATIVO') return 'success';
@@ -60,6 +133,16 @@ export function CustomersPage() {
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(20);
   const [confirmDelete, setConfirmDelete] = useState<Customer | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   const { data, isLoading } = useQuery({
     queryKey: ['customers', { search, status: statusFilter || undefined, origin: originFilter || undefined, active: activeFilter || undefined, page, size: pageSize }],
@@ -92,6 +175,17 @@ export function CustomersPage() {
   const customers = data?.content ?? [];
 
   const columns = [
+    {
+      header: '',
+      render: (row: Customer) => (
+        <input
+          type="checkbox"
+          checked={selectedIds.has(row.id)}
+          onChange={() => toggleSelected(row.id)}
+          onClick={(e) => e.stopPropagation()}
+        />
+      ),
+    },
     {
       header: 'Nome',
       render: (row: Customer) => (
@@ -146,11 +240,23 @@ export function CustomersPage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-neutral-900">Clientes</h1>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {activeTab === 'all' && customers.length > 0 && (
-            <Button variant="outline" onClick={() => exportCSV(customers)}>
-              Exportar CSV
-            </Button>
+            <>
+              <Button variant="outline" onClick={() => exportCSV(customers)}>
+                Exportar CSV
+              </Button>
+              <Button variant="outline" onClick={() => handlePrintList(customers)}>
+                🖨️ Imprimir Lista
+              </Button>
+              <Button
+                variant="outline"
+                disabled={selectedIds.size === 0}
+                onClick={() => handlePrintProfiles(customers.filter((c) => selectedIds.has(c.id)))}
+              >
+                🖨️ Imprimir Perfis ({selectedIds.size})
+              </Button>
+            </>
           )}
           <Link to="/admin/clientes/novo">
             <Button>Novo cliente</Button>

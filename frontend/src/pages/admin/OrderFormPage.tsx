@@ -9,6 +9,7 @@ import { createOrder, updateOrder, getOrder } from '../../services/orderService'
 import { listCustomers, getCustomer } from '../../services/customerService';
 import { formatCurrency as fmtCur } from '../../utils/formatCurrency';
 import { listAdminProducts } from '../../services/productService';
+import { listActiveSalesChannels } from '../../services/salesChannelService';
 import type { Customer, CustomerType } from '../../types/customer';
 import type { OrderItemRequest, PaymentCondition } from '../../types/order';
 import { PAYMENT_CONDITION_LABELS } from '../../types/order';
@@ -54,6 +55,7 @@ export function OrderFormPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [walkinName, setWalkinName] = useState('');
   const [walkinPhone, setWalkinPhone] = useState('');
+  const [salesChannelId, setSalesChannelId] = useState('');
 
   const [productSearch, setProductSearch] = useState('');
   const [selectedProductId, setSelectedProductId] = useState('');
@@ -101,6 +103,13 @@ export function OrderFormPage() {
       listAdminProducts({ status: 'ATIVO', search: productSearch || undefined, size: 100 }),
   });
 
+  const { data: salesChannels = [] } = useQuery({
+    queryKey: ['sales-channels'],
+    queryFn: listActiveSalesChannels,
+  });
+
+  const selectedChannel = salesChannels.find((c) => c.id === salesChannelId);
+
   const products = productsData?.content ?? [];
   const selectedProduct = products.find((p) => p.id === selectedProductId);
 
@@ -112,6 +121,7 @@ export function OrderFormPage() {
     setNfNumber(existingOrder.nfNumber ?? '');
     setEstimatedDeliveryDate(existingOrder.estimatedDeliveryDate ?? '');
     setPaymentCondition(existingOrder.paymentCondition ?? 'NA_ENTREGA');
+    setSalesChannelId(existingOrder.salesChannelId ?? '');
 
     if (existingOrder.customerId) {
       setCustomerMode('registered');
@@ -212,6 +222,12 @@ export function OrderFormPage() {
     0,
   );
 
+  const channelFixedFee = selectedChannel?.fixedFee ?? 0;
+  const channelVariableFee = selectedChannel ? (total * selectedChannel.variableFeePercent) / 100 : 0;
+  const channelTotalFee = channelFixedFee + channelVariableFee;
+  const commissionEstimate = Math.round(((total * commissionRate) / 100) * 100) / 100;
+  const netProfitEstimate = total - channelTotalFee - commissionEstimate;
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
@@ -231,6 +247,7 @@ export function OrderFormPage() {
         notes: notes || undefined,
         nfNumber: nfNumber.trim() || undefined,
         estimatedDeliveryDate: estimatedDeliveryDate || undefined,
+        salesChannelId: salesChannelId || undefined,
         items,
         paymentCondition,
       };
@@ -250,6 +267,7 @@ export function OrderFormPage() {
         notes: notes || undefined,
         nfNumber: nfNumber.trim() || undefined,
         estimatedDeliveryDate: estimatedDeliveryDate || undefined,
+        salesChannelId: salesChannelId || undefined,
         items,
         paymentCondition,
       };
@@ -395,6 +413,31 @@ export function OrderFormPage() {
           )}
         </Card>
 
+        {/* ── Canal de Venda ── */}
+        <Card>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-500">
+            Canal de Venda
+          </h2>
+          <select
+            value={salesChannelId}
+            onChange={(e) => setSalesChannelId(e.target.value)}
+            className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-light"
+          >
+            <option value="">Não informado</option>
+            {salesChannels.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+          {selectedChannel && (selectedChannel.fixedFee > 0 || selectedChannel.variableFeePercent > 0) && (
+            <p className="mt-2 text-xs text-neutral-600">
+              📊 Taxas do canal:
+              {selectedChannel.fixedFee > 0 && ` Taxa fixa: ${fmtCurrency(selectedChannel.fixedFee)}`}
+              {selectedChannel.fixedFee > 0 && selectedChannel.variableFeePercent > 0 && ' + '}
+              {selectedChannel.variableFeePercent > 0 && `${selectedChannel.variableFeePercent}% sobre o total`}
+            </p>
+          )}
+        </Card>
+
         {/* ── Produtos ── */}
         <Card>
           <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-neutral-500">
@@ -532,6 +575,36 @@ export function OrderFormPage() {
                   Total: {fmtCurrency(total)}
                 </span>
               </div>
+
+              {(selectedChannel || commissionRate > 0) && (
+                <div className="border-t border-neutral-200 bg-neutral-50 px-3 py-3 text-sm">
+                  <div className="flex justify-between text-neutral-700">
+                    <span>Subtotal</span>
+                    <span>{fmtCurrency(total)}</span>
+                  </div>
+                  {selectedChannel && channelTotalFee > 0 && (
+                    <div className="flex justify-between text-neutral-700">
+                      <span>
+                        Taxa do canal
+                        {selectedChannel.fixedFee > 0 && selectedChannel.variableFeePercent > 0
+                          ? ` (${selectedChannel.name}: ${fmtCurrency(selectedChannel.fixedFee)} + ${selectedChannel.variableFeePercent}%)`
+                          : ''}
+                      </span>
+                      <span className="text-danger">-{fmtCurrency(channelTotalFee)}</span>
+                    </div>
+                  )}
+                  {commissionRate > 0 && (
+                    <div className="flex justify-between text-neutral-700">
+                      <span>Comissão vendedor ({commissionRate}%)</span>
+                      <span className="text-danger">-{fmtCurrency(commissionEstimate)}</span>
+                    </div>
+                  )}
+                  <div className="mt-2 flex justify-between border-t border-neutral-200 pt-2 font-bold text-green-700">
+                    <span>Lucro estimado</span>
+                    <span>{fmtCurrency(netProfitEstimate)}</span>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <p className="text-sm text-neutral-500">

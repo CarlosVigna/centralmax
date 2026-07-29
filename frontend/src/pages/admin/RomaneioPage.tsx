@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Button } from '../../components/ui/Button';
 import { getPurchaseList } from '../../services/romaneioService';
 import type { OrderStatus } from '../../types/order';
+import { printHeader, printFooter, printDocument } from '../../utils/printUtils';
 
 const STATUS_OPTS: { value: OrderStatus; label: string }[] = [
   { value: 'CONFIRMADO', label: 'Confirmado' },
@@ -44,7 +45,36 @@ export function RomaneioPage() {
   }
 
   function handlePrint() {
-    window.print();
+    if (!data) return;
+    const content = `
+      ${printHeader('Romaneio de Compras',
+        `Gerado em ${new Date().toLocaleDateString('pt-BR')} | ${data.items.length} produtos | Pedidos: ${data.orders.join(', ')}`)}
+
+      <table>
+        <thead>
+          <tr>
+            <th>SKU</th>
+            <th>Produto</th>
+            <th style="text-align:right">Qtd Total</th>
+            <th>Pedidos</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${data.items.map((item) => `
+            <tr>
+              <td>${item.sku || '—'}</td>
+              <td><strong>${item.productName}</strong></td>
+              <td style="text-align:right;font-size:14px;font-weight:700;color:#0f1f3d">${item.totalQuantity}</td>
+              <td style="font-size:10px;color:#666">
+                ${item.orders.map((o) => `${o.orderNumber} (${o.customerName}: ${o.quantity})`).join('<br>')}
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+      ${printFooter()}
+    `;
+    printDocument(content, 'Romaneio de Compras');
   }
 
   function handleExportCsv() {

@@ -30,6 +30,7 @@ import { ActivityFeedPage } from '../pages/admin/ActivityFeedPage';
 import { RomaneioPage } from '../pages/admin/RomaneioPage';
 import { DeliveryRoutePage } from '../pages/admin/DeliveryRoutePage';
 import { WeeklyForecastPage } from '../pages/admin/WeeklyForecastPage';
+import { SalesChannelsPage } from '../pages/admin/SalesChannelsPage';
 import { OrderTrackingPage } from '../pages/public/OrderTrackingPage';
 import { useAuth } from '../hooks/useAuth';
 
@@ -81,6 +82,7 @@ export function AppRoutes() {
           <Route path="meus-relatorios" element={<VendorReportsPage />} />
           <Route path="atividades" element={<ActivityFeedPage />} />
           <Route path="previsao" element={<WeeklyForecastPage />} />
+          <Route path="canais" element={<SalesChannelsPage />} />
         </Route>
       </Route>
 

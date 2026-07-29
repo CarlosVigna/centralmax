@@ -103,4 +103,10 @@ public interface OrderRepository extends JpaRepository<Order, UUID>, JpaSpecific
     List<Object[]> findWeeklyForecastData(
             @Param("start30") Instant start30,
             @Param("start15") Instant start15);
+
+    @Query("SELECT o FROM Order o LEFT JOIN FETCH o.salesChannel " +
+           "WHERE o.active = true AND o.status <> 'CANCELADO' " +
+           "AND o.createdAt >= :start AND o.createdAt < :end " +
+           "AND o.salesChannel IS NOT NULL")
+    List<Order> findForChannelProfitability(@Param("start") Instant start, @Param("end") Instant end);
 }

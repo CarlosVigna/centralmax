@@ -7,6 +7,7 @@ import { Modal } from '../../components/ui/Modal';
 import { getAgendaSchedules, completeSchedule, cancelSchedule } from '../../services/contactScheduleService';
 import type { ContactSchedule, ContactResult } from '../../types/contactSchedule';
 import { CONTACT_RESULT_OPTIONS } from '../../types/contactSchedule';
+import { printHeader, printFooter, printDocument } from '../../utils/printUtils';
 
 type Period = 'today' | 'tomorrow' | 'week' | 'month' | 'overdue';
 
@@ -69,6 +70,36 @@ interface RegisterState {
   customerId: string;
 }
 
+function handlePrintAgenda(date: string, items: ContactSchedule[]) {
+  const agendaItems = items.filter((i) => i.scheduledDate === date);
+  const content = `
+    ${printHeader('Agenda de Contatos', `Data: ${formatLocalDate(date)} | ${agendaItems.length} contatos`)}
+
+    <table>
+      <thead>
+        <tr>
+          <th>Cliente</th>
+          <th>Status</th>
+          <th>Telefone</th>
+          <th>Motivo</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${agendaItems.map((item) => `
+          <tr>
+            <td><strong>${item.customerName}</strong></td>
+            <td>${STATUS_LABEL[item.customerStatus] ?? item.customerStatus}</td>
+            <td>${item.customerPhone || '—'}</td>
+            <td>${item.reason || '—'}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+    ${printFooter()}
+  `;
+  printDocument(content, 'Agenda de Contatos');
+}
+
 export function AgendaPage() {
   const [searchParams] = useSearchParams();
   const initialPeriod = (searchParams.get('period') as Period) ?? 'today';
@@ -82,6 +113,7 @@ export function AgendaPage() {
   const [rescheduleTo, setRescheduleTo] = useState('');
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [showCreateOrder, setShowCreateOrder] = useState<{ id: string; name: string } | null>(null);
+  const [printDate, setPrintDate] = useState(() => new Date().toISOString().split('T')[0]);
 
   const { data: items = [], isLoading, isError } = useQuery({
     queryKey: ['agenda', period],
@@ -231,7 +263,20 @@ export function AgendaPage() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold text-neutral-900">Agenda de Contatos</h1>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold text-neutral-900">Agenda de Contatos</h1>
+        <div className="flex items-center gap-2">
+          <input
+            type="date"
+            value={printDate}
+            onChange={(e) => setPrintDate(e.target.value)}
+            className="rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-light"
+          />
+          <Button variant="outline" size="sm" onClick={() => handlePrintAgenda(printDate, items)}>
+            🖨️ Imprimir Agenda
+          </Button>
+        </div>
+      </div>
 
       {/* Toast de sucesso */}
       {successMsg && (

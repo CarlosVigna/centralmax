@@ -16,10 +16,14 @@ import br.com.centralmax.maxhub.order.dto.OrderTrackingResponse;
 import br.com.centralmax.maxhub.product.Product;
 import br.com.centralmax.maxhub.product.ProductRepository;
 import br.com.centralmax.maxhub.product.discount.ProductVolumeDiscountRepository;
+import br.com.centralmax.maxhub.saleschannel.SalesChannel;
+import br.com.centralmax.maxhub.saleschannel.SalesChannelRepository;
 import br.com.centralmax.maxhub.security.SecurityUtils;
 import br.com.centralmax.maxhub.stock.StockMovement;
 import br.com.centralmax.maxhub.stock.StockMovementRepository;
 import br.com.centralmax.maxhub.stock.StockMovementType;
+import br.com.centralmax.maxhub.user.User;
+import br.com.centralmax.maxhub.user.UserRepository;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -69,6 +73,8 @@ public class OrderService {
     private final ProductVolumeDiscountRepository volumeDiscountRepository;
     private final SecurityUtils securityUtils;
     private final ActivityFeedService activityFeedService;
+    private final SalesChannelRepository salesChannelRepository;
+    private final UserRepository userRepository;
 
     @Transactional(readOnly = true)
     public PageResponse<OrderResponse> list(OrderStatus status, String search, UUID customerId, int page, int size) {
@@ -132,6 +138,7 @@ public class OrderService {
                 ? request.paymentCondition() : PaymentCondition.NA_ENTREGA;
 
         String orderNumber = generateOrderNumber();
+        SalesChannel salesChannel = resolveSalesChannel(request.salesChannelId());
 
         Order order = Order.builder()
                 .orderNumber(orderNumber)
@@ -144,6 +151,7 @@ public class OrderService {
                 .paymentCondition(paymentCondition)
                 .nfNumber(blankToNull(request.nfNumber()))
                 .estimatedDeliveryDate(request.estimatedDeliveryDate())
+                .salesChannel(salesChannel)
                 .createdByUserId(securityUtils.getCurrentUser().map(u -> u.getId()).orElse(null))
                 .build();
         order = orderRepository.save(order);
@@ -183,6 +191,7 @@ public class OrderService {
         }
 
         order.setTotalAmount(total);
+        applyChannelFeesAndProfit(order, customerType, total);
         order = orderRepository.save(order);
         stockMovementRepository.saveAll(movements);
 
@@ -232,6 +241,7 @@ public class OrderService {
         order.setNotes(blankToNull(request.notes()));
         order.setNfNumber(blankToNull(request.nfNumber()));
         order.setEstimatedDeliveryDate(request.estimatedDeliveryDate());
+        order.setSalesChannel(resolveSalesChannel(request.salesChannelId()));
 
         if (request.paymentCondition() != null) {
             order.setPaymentCondition(request.paymentCondition());
@@ -266,6 +276,7 @@ public class OrderService {
         }
 
         order.setTotalAmount(total);
+        applyChannelFeesAndProfit(order, customerType, total);
         order = orderRepository.save(order);
 
         if (order.getStatus() == OrderStatus.CONFIRMADO) {
@@ -602,6 +613,53 @@ public class OrderService {
             }
         }
         return requestedDiscount != null ? requestedDiscount : BigDecimal.ZERO;
+    }
+
+    private SalesChannel resolveSalesChannel(UUID salesChannelId) {
+        if (salesChannelId == null) return null;
+        return salesChannelRepository.findById(salesChannelId)
+                .orElseThrow(() -> new ResourceNotFoundException("Canal de venda não encontrado"));
+    }
+
+    private void applyChannelFeesAndProfit(Order order, CustomerType customerType, BigDecimal total) {
+        SalesChannel channel = order.getSalesChannel();
+        BigDecimal channelFixedFee = BigDecimal.ZERO;
+        BigDecimal channelVariableFee = BigDecimal.ZERO;
+
+        if (channel != null) {
+            // O modelo atual não possui um campo de frete separado no pedido,
+            // então TOTAL e PRODUCTS usam a mesma base (valor total do pedido).
+            BigDecimal base = total;
+            channelFixedFee = channel.getFixedFee() != null ? channel.getFixedFee() : BigDecimal.ZERO;
+            BigDecimal variablePercent = channel.getVariableFeePercent() != null
+                    ? channel.getVariableFeePercent() : BigDecimal.ZERO;
+            channelVariableFee = base.multiply(variablePercent)
+                    .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+        }
+        BigDecimal channelTotalFee = channelFixedFee.add(channelVariableFee);
+
+        BigDecimal vendorCommission = resolveVendorCommission(order.getCreatedByUserId(), customerType, total);
+
+        order.setChannelFixedFee(channelFixedFee);
+        order.setChannelVariableFee(channelVariableFee);
+        order.setChannelTotalFee(channelTotalFee);
+        order.setNetProfit(total.subtract(channelTotalFee).subtract(vendorCommission));
+    }
+
+    private BigDecimal resolveVendorCommission(UUID createdByUserId, CustomerType customerType, BigDecimal total) {
+        if (createdByUserId == null) return BigDecimal.ZERO;
+        User user = userRepository.findById(createdByUserId).orElse(null);
+        if (user == null) return BigDecimal.ZERO;
+
+        BigDecimal rate = switch (customerType) {
+            case A -> user.getCommissionPriceA();
+            case B -> user.getCommissionPriceB();
+            case C -> user.getCommissionPriceC();
+        };
+        if (rate == null) rate = user.getCommissionPriceC();
+        if (rate == null) return BigDecimal.ZERO;
+
+        return total.multiply(rate).divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
     }
 
     private BigDecimal resolvePrice(Product product, CustomerType type) {

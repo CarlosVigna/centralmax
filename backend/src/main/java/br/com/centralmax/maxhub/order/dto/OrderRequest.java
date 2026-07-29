@@ -27,6 +27,8 @@ public record OrderRequest(
 
         java.time.LocalDate estimatedDeliveryDate,
 
+        UUID salesChannelId,
+
         @NotEmpty(message = "O pedido deve ter ao menos 1 item")
         @Valid
         List<OrderItemRequest> items

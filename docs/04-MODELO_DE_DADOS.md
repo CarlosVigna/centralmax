@@ -140,10 +140,36 @@ Regra de validação (aplicação, não banco): `phone` ou `email` deve estar pr
 | origin | VARCHAR(20) | NOT NULL — mesmo enum de `customers.origin` |
 | total | NUMERIC(12,2) | NOT NULL, DEFAULT 0 — calculado a partir dos itens |
 | notes | TEXT | NULLABLE |
+| sales_channel_id | UUID | FK → sales_channels.id, NULLABLE — canal de venda pelo qual o pedido foi realizado |
+| channel_fixed_fee | NUMERIC(15,2) | DEFAULT 0 — taxa fixa do canal aplicada ao pedido |
+| channel_variable_fee | NUMERIC(15,2) | DEFAULT 0 — taxa variável do canal aplicada ao pedido |
+| channel_total_fee | NUMERIC(15,2) | DEFAULT 0 — soma de channel_fixed_fee + channel_variable_fee |
+| net_profit | NUMERIC(15,2) | DEFAULT 0 — total_amount - channel_total_fee - comissão do vendedor |
 | created_at | TIMESTAMP | NOT NULL, DEFAULT now() |
 | updated_at | TIMESTAMP | NOT NULL, DEFAULT now() |
 
 Índices: `(customer_id)`, `(status)`, `(created_at)`.
+
+---
+
+## `sales_channels`
+
+Canais pelos quais um pedido pode ser originado (WhatsApp, Mercado Livre, Shopee etc.), cada um com sua própria estrutura de taxas.
+
+| Campo | Tipo | Constraints |
+|---|---|---|
+| id | UUID | PK |
+| name | VARCHAR(100) | NOT NULL, UNIQUE |
+| fixed_fee | NUMERIC(15,2) | NOT NULL, DEFAULT 0 |
+| variable_fee_percent | NUMERIC(5,2) | NOT NULL, DEFAULT 0 |
+| fee_base | VARCHAR(20) | NOT NULL, DEFAULT 'TOTAL' — enum: `TOTAL` (sobre o valor total do pedido), `PRODUCTS` (apenas produtos, sem frete) |
+| shipping_responsibility | VARCHAR(20) | DEFAULT 'CLIENT' — enum: `CLIENT`, `SELLER`, `PLATFORM` |
+| notes | TEXT | NULLABLE |
+| active | BOOLEAN | NOT NULL, DEFAULT true — exclusão lógica |
+| created_at | TIMESTAMP | NOT NULL, DEFAULT now() |
+| updated_at | TIMESTAMP | NOT NULL, DEFAULT now() |
+
+Nota: o modelo atual de `orders` não possui um campo de frete separado, portanto `fee_base = PRODUCTS` e `fee_base = TOTAL` resultam na mesma base de cálculo (`total_amount`) até que o pedido passe a registrar valor de frete isoladamente.
 
 ---
 

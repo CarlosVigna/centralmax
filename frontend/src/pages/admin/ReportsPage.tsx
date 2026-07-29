@@ -14,14 +14,19 @@ import {
   YAxis,
 } from 'recharts';
 import { Card } from '../../components/ui/Card';
-import { getCustomerReport, getSalesReport } from '../../services/reportService';
+import { Button } from '../../components/ui/Button';
+import { getChannelProfitability, getCustomerReport, getSalesReport } from '../../services/reportService';
+import type { ChannelProfitability, ChannelProfitabilityTotals } from '../../services/reportService';
+import { listActiveSalesChannels } from '../../services/salesChannelService';
+import type { SalesChannel } from '../../types/salesChannel';
+import { printHeader, printFooter, printDocument } from '../../utils/printUtils';
 
 const fmtCurrency = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
 const PIE_COLORS = ['#0f1f3d', '#f97316', '#16a34a', '#dc2626', '#7c3aed', '#0284c7', '#d97706', '#db2777', '#0f766e', '#9333ea'];
 
-type Tab = 'vendas' | 'clientes';
+type Tab = 'vendas' | 'clientes' | 'canais';
 
 type PeriodPreset = 'mes_atual' | 'ultimos_30' | 'este_ano' | 'personalizado';
 
@@ -53,6 +58,7 @@ export function ReportsPage() {
   const [preset, setPreset] = useState<PeriodPreset>('mes_atual');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
+  const [selectedChannelIds, setSelectedChannelIds] = useState<string[] | null>(null);
 
   const { start, end } =
     preset === 'personalizado' && customStart && customEnd
@@ -69,6 +75,21 @@ export function ReportsPage() {
     queryKey: ['report-customers', start, end],
     queryFn: () => getCustomerReport(start, end),
     enabled: tab === 'clientes',
+  });
+
+  const { data: salesChannels = [] } = useQuery({
+    queryKey: ['sales-channels'],
+    queryFn: listActiveSalesChannels,
+    enabled: tab === 'canais',
+  });
+
+  // Marca todos os canais como selecionados por padrão assim que a lista carrega
+  const effectiveChannelIds = selectedChannelIds ?? salesChannels.map((c) => c.id);
+
+  const { data: channelData, isLoading: channelLoading } = useQuery({
+    queryKey: ['report-channel-profitability', start, end, effectiveChannelIds],
+    queryFn: () => getChannelProfitability(start, end, effectiveChannelIds),
+    enabled: tab === 'canais' && salesChannels.length > 0,
   });
 
   return (
@@ -110,15 +131,15 @@ export function ReportsPage() {
 
       {/* Tabs */}
       <div className="mb-6 flex gap-0 rounded-lg border border-neutral-200 bg-neutral-50 p-1 w-fit">
-        {(['vendas', 'clientes'] as Tab[]).map((t) => (
+        {(['vendas', 'clientes', 'canais'] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`rounded-md px-5 py-2 text-sm font-medium transition-colors capitalize ${
+            className={`rounded-md px-5 py-2 text-sm font-medium transition-colors ${
               tab === t ? 'bg-white text-primary shadow-sm' : 'text-neutral-600 hover:text-neutral-900'
             }`}
           >
-            {t === 'vendas' ? 'Vendas' : 'Clientes'}
+            {t === 'vendas' ? 'Vendas' : t === 'clientes' ? 'Clientes' : 'Rentabilidade por Canal'}
           </button>
         ))}
       </div>
@@ -128,6 +149,20 @@ export function ReportsPage() {
       )}
       {tab === 'clientes' && (
         <CustomersTab data={customerData} isLoading={customerLoading} />
+      )}
+      {tab === 'canais' && (
+        <ChannelProfitabilityTab
+          data={channelData}
+          isLoading={channelLoading}
+          channels={salesChannels}
+          selectedChannelIds={effectiveChannelIds}
+          onToggleChannel={(id) =>
+            setSelectedChannelIds((prev) => {
+              const base = prev ?? salesChannels.map((c) => c.id);
+              return base.includes(id) ? base.filter((x) => x !== id) : [...base, id];
+            })
+          }
+        />
       )}
     </div>
   );
@@ -422,6 +457,208 @@ function CustomersTab({
           </div>
         )}
       </Card>
+    </div>
+  );
+}
+
+function printChannelProfitability(
+  period: string,
+  channels: ChannelProfitability[],
+  totals: ChannelProfitabilityTotals,
+) {
+  const content = `
+    ${printHeader('Relatório de Rentabilidade por Canal', `Período: ${period}`)}
+
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px">
+      <div style="background:#e8f5e9;padding:12px;border-radius:8px">
+        <div style="font-size:11px;color:#666">Faturamento Bruto</div>
+        <div style="font-size:18px;font-weight:700;color:#2e7d32">${fmtCurrency(totals.grossRevenue)}</div>
+      </div>
+      <div style="background:#ffebee;padding:12px;border-radius:8px">
+        <div style="font-size:11px;color:#666">Total de Taxas</div>
+        <div style="font-size:18px;font-weight:700;color:#c62828">${fmtCurrency(totals.totalFees)}</div>
+      </div>
+      <div style="background:#fff3e0;padding:12px;border-radius:8px">
+        <div style="font-size:11px;color:#666">Comissões</div>
+        <div style="font-size:18px;font-weight:700;color:#e65100">${fmtCurrency(totals.vendorCommissions)}</div>
+      </div>
+      <div style="background:#e3f2fd;padding:12px;border-radius:8px">
+        <div style="font-size:11px;color:#666">Lucro Líquido</div>
+        <div style="font-size:18px;font-weight:700;color:#1565c0">${fmtCurrency(totals.netProfit)}</div>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Canal</th>
+          <th style="text-align:right">Pedidos</th>
+          <th style="text-align:right">Faturamento</th>
+          <th style="text-align:right">Taxas</th>
+          <th style="text-align:right">Comissões</th>
+          <th style="text-align:right">Lucro</th>
+          <th style="text-align:right">Margem</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${channels.map((c) => `
+          <tr>
+            <td><strong>${c.channelName}</strong></td>
+            <td style="text-align:right">${c.totalOrders}</td>
+            <td style="text-align:right">${fmtCurrency(c.grossRevenue)}</td>
+            <td style="text-align:right;color:#c62828">-${fmtCurrency(c.totalFees)}</td>
+            <td style="text-align:right;color:#e65100">-${fmtCurrency(c.vendorCommissions)}</td>
+            <td style="text-align:right;color:#2e7d32;font-weight:700">${fmtCurrency(c.netProfit)}</td>
+            <td style="text-align:right">
+              <span class="badge ${c.profitMargin >= 70 ? 'badge-green' : 'badge-orange'}">${c.profitMargin.toFixed(1)}%</span>
+            </td>
+          </tr>
+        `).join('')}
+        <tr style="border-top:2px solid #0f1f3d;font-weight:700">
+          <td>TOTAL</td>
+          <td style="text-align:right">${totals.totalOrders}</td>
+          <td style="text-align:right">${fmtCurrency(totals.grossRevenue)}</td>
+          <td style="text-align:right;color:#c62828">-${fmtCurrency(totals.totalFees)}</td>
+          <td style="text-align:right;color:#e65100">-${fmtCurrency(totals.vendorCommissions)}</td>
+          <td style="text-align:right;color:#2e7d32">${fmtCurrency(totals.netProfit)}</td>
+          <td style="text-align:right">${totals.profitMargin.toFixed(1)}%</td>
+        </tr>
+      </tbody>
+    </table>
+    ${printFooter()}
+  `;
+  printDocument(content, 'Rentabilidade por Canal');
+}
+
+function ChannelProfitabilityTab({
+  data,
+  isLoading,
+  channels,
+  selectedChannelIds,
+  onToggleChannel,
+}: {
+  data: Awaited<ReturnType<typeof getChannelProfitability>> | undefined;
+  isLoading: boolean;
+  channels: SalesChannel[];
+  selectedChannelIds: string[];
+  onToggleChannel: (id: string) => void;
+}) {
+  return (
+    <div className="space-y-6">
+      {/* Multiselect de canais */}
+      <Card>
+        <p className="mb-2 text-sm font-semibold text-neutral-700">Canais</p>
+        <div className="flex flex-wrap gap-3">
+          {channels.map((c) => (
+            <label key={c.id} className="flex cursor-pointer items-center gap-1.5 text-sm text-neutral-700">
+              <input
+                type="checkbox"
+                checked={selectedChannelIds.includes(c.id)}
+                onChange={() => onToggleChannel(c.id)}
+              />
+              {c.name}
+            </label>
+          ))}
+        </div>
+      </Card>
+
+      {isLoading ? (
+        <p className="text-sm text-neutral-600">Carregando...</p>
+      ) : !data || data.channels.length === 0 ? (
+        <p className="text-sm text-neutral-500">Sem dados no período selecionado.</p>
+      ) : (
+        <>
+          <div className="flex justify-end">
+            <Button variant="outline" size="sm" onClick={() => printChannelProfitability(data.period, data.channels, data.totals)}>
+              🖨️ Imprimir Relatório
+            </Button>
+          </div>
+
+          {/* Cards */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+            <Card>
+              <p className="text-xs font-medium text-neutral-500">Faturamento Bruto</p>
+              <p className="mt-1 text-lg font-bold text-green-600">{fmtCurrency(data.totals.grossRevenue)}</p>
+            </Card>
+            <Card>
+              <p className="text-xs font-medium text-neutral-500">Taxas de Plataforma</p>
+              <p className="mt-1 text-lg font-bold text-danger">{fmtCurrency(data.totals.totalFees)}</p>
+            </Card>
+            <Card>
+              <p className="text-xs font-medium text-neutral-500">Comissões</p>
+              <p className="mt-1 text-lg font-bold text-orange-500">{fmtCurrency(data.totals.vendorCommissions)}</p>
+            </Card>
+            <Card>
+              <p className="text-xs font-medium text-neutral-500">Lucro Líquido</p>
+              <p className="mt-1 text-lg font-bold text-primary">{fmtCurrency(data.totals.netProfit)}</p>
+            </Card>
+            <Card>
+              <p className="text-xs font-medium text-neutral-500">Margem Média</p>
+              <p className="mt-1 text-lg font-bold text-neutral-900">{data.totals.profitMargin.toFixed(1)}%</p>
+            </Card>
+          </div>
+
+          {/* Gráfico de barras agrupadas */}
+          <Card>
+            <p className="mb-4 text-sm font-semibold text-neutral-700">Faturamento x Taxas x Lucro por canal</p>
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={data.channels} margin={{ top: 0, right: 16, left: 16, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="channelName" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
+                <Tooltip formatter={(v) => fmtCurrency(Number(v))} />
+                <Legend />
+                <Bar dataKey="grossRevenue" fill="#0f1f3d" radius={[4, 4, 0, 0]} name="Faturamento" />
+                <Bar dataKey="totalFees" fill="#dc2626" radius={[4, 4, 0, 0]} name="Taxas" />
+                <Bar dataKey="netProfit" fill="#16a34a" radius={[4, 4, 0, 0]} name="Lucro" />
+              </BarChart>
+            </ResponsiveContainer>
+          </Card>
+
+          {/* Tabela */}
+          <Card>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-xs font-medium text-neutral-500">
+                  <tr>
+                    <th className="py-2 text-left">Canal</th>
+                    <th className="py-2 text-right">Pedidos</th>
+                    <th className="py-2 text-right">Faturamento</th>
+                    <th className="py-2 text-right">Taxas</th>
+                    <th className="py-2 text-right">Comissões</th>
+                    <th className="py-2 text-right">Lucro</th>
+                    <th className="py-2 text-right">Margem</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-100">
+                  {data.channels.map((c, i) => (
+                    <tr key={i}>
+                      <td className="py-2 text-neutral-800">{c.channelName}</td>
+                      <td className="py-2 text-right text-neutral-600">{c.totalOrders}</td>
+                      <td className="py-2 text-right text-neutral-700">{fmtCurrency(c.grossRevenue)}</td>
+                      <td className="py-2 text-right text-danger">-{fmtCurrency(c.totalFees)}</td>
+                      <td className="py-2 text-right text-orange-600">-{fmtCurrency(c.vendorCommissions)}</td>
+                      <td className="py-2 text-right font-semibold text-green-600">{fmtCurrency(c.netProfit)}</td>
+                      <td className="py-2 text-right font-medium">{c.profitMargin.toFixed(1)}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-neutral-300 font-bold">
+                    <td className="py-2 text-neutral-900">TOTAL</td>
+                    <td className="py-2 text-right text-neutral-900">{data.totals.totalOrders}</td>
+                    <td className="py-2 text-right text-neutral-900">{fmtCurrency(data.totals.grossRevenue)}</td>
+                    <td className="py-2 text-right text-danger">-{fmtCurrency(data.totals.totalFees)}</td>
+                    <td className="py-2 text-right text-orange-600">-{fmtCurrency(data.totals.vendorCommissions)}</td>
+                    <td className="py-2 text-right text-green-600">{fmtCurrency(data.totals.netProfit)}</td>
+                    <td className="py-2 text-right text-neutral-900">{data.totals.profitMargin.toFixed(1)}%</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </Card>
+        </>
+      )}
     </div>
   );
 }

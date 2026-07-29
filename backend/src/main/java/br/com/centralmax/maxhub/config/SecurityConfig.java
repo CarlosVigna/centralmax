@@ -63,6 +63,12 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PATCH, "/api/products/*/photos/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/products/*/variations").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/products/*/variations/**").hasRole("ADMIN")
+                        // Canais de venda — leitura autenticada, escrita ADMIN
+                        .requestMatchers(HttpMethod.GET, "/api/sales-channels/all").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/sales-channels", "/api/sales-channels/**").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/sales-channels").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/sales-channels/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/sales-channels/**").hasRole("ADMIN")
                         // Fornecedores — somente ADMIN
                         .requestMatchers(HttpMethod.GET, "/api/suppliers", "/api/suppliers/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/suppliers").hasRole("ADMIN")
